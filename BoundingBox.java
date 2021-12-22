@@ -15,4 +15,9 @@ public class BoundingBox {
         this.mLocation = new Point(locX, locY);
         this.mDimensions = new Point(width, height);
     }
+
+    @Override
+    public String toString() {
+        return "Box@(" + mLocation.x + ", " + mLocation.y + ") of size (" + mDimensions.x + ", " + mDimensions.y + ")";
+    }
 }
