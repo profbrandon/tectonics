@@ -52,10 +52,17 @@ public class Chunk {
             mThickness = Length.fromMeters(thicknessMeters);
         }
 
+        /**
+         * @return the thickness in meters
+         */
         public Length getThickness() {
             return mThickness;
         }
 
+        /**
+         * @param layers the layers to compute the total thickness of
+         * @return the total thickness in meters
+         */
         public static Length totalThickness(final Collection<Layer> layers) {
             float totalMeters = 0.0f;
 

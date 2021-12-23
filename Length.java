@@ -36,6 +36,11 @@ public class Length {
 
 
 
+    public Length scale(final float factor) {
+        return Length.fromMeters(mMeters * factor);
+    }
+
+
 
     public static Length fromMeters(final float meters) {
         return new Length(meters);
@@ -68,6 +73,11 @@ public class Length {
         return fromMeters(sum);
     }
 
+    /**
+     * Computes the product in m^ls.length
+     * @param ls the lengths to multiply
+     * @return the product
+     */
     public static float multiply(final Length...ls) {
         float product = 1.0f;
 

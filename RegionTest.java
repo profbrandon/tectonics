@@ -22,7 +22,14 @@ public class RegionTest extends JFrame {
         if (shape.isEmpty()) return;
 
         final Region region = new Region(shape.get().first, shape.get().second.x, shape.get().second.y);
-        final Point location = new Point(50, 50);
+        final Point location = new Point(0, 0);
+
+        final float displacement = region.reEvaluateHeightMap(3400f);
+
+        System.out.println(displacement + " km^3");
+        final float chunkWidth = Chunk.WIDTH_IN_KM.toKilometers();
+
+        region.lift(Length.fromKilometers(displacement / region.getDimX() / region.getDimY() / chunkWidth / chunkWidth).toMeters());
 
         final List<Pair<Point, Region>> regions = region.partition();
 
@@ -33,6 +40,7 @@ public class RegionTest extends JFrame {
             mRegionPanel.addRegion(subRegion.second, Util.sumPoints(location, subRegion.first));
         }
 
+        //mRegionPanel.addRegion(region, location);
 
         add(mRegionPanel);
         pack();
@@ -46,9 +54,18 @@ public class RegionTest extends JFrame {
         });
     }
 
-    private class RegionPanel extends JPanel {
+    private static class RegionPanel extends JPanel {
 
-        private boolean paintBoundingBoxes = true;
+        public enum RegionPanelMode {
+            DEFAULT,
+            HEIGHT_MAP
+        }
+
+        private boolean paintBoundingBoxes = false;
+        private RegionPanelMode mode = RegionPanelMode.HEIGHT_MAP;
+
+        private float maxElevation = 0f;
+        private float minElevation = 0f;
 
         private final List<Pair<Point, Region>> mRegions = new ArrayList<>();
 
@@ -65,6 +82,28 @@ public class RegionTest extends JFrame {
         @Override
         public void paint(Graphics g) {
             super.paint(g);
+
+            maxElevation = Float.NEGATIVE_INFINITY;
+            minElevation = Float.POSITIVE_INFINITY;
+
+            for (final Pair<Point, Region> pair : mRegions) {
+                final Region region = pair.second;
+
+                for (int i = 0; i < region.getDimY(); ++i) {
+                    for (int j = 0; j < region.getDimX(); ++j) {
+                        final Optional<Chunk> chunk = region.getChunkAt(j, i);
+    
+                        if (chunk.isPresent()) {
+                            final float elevation = chunk.get().getThickness().toMeters() - region.getHeightAt(j, i);
+                            if (elevation > maxElevation) maxElevation = elevation;
+                            if (elevation < minElevation) minElevation = elevation;
+                        }
+                    }
+                }
+            }
+
+            System.out.println("Max Elevation: " + maxElevation);
+            System.out.println("Min Elevation: " + minElevation);
 
             for (final Pair<Point, Region> pair : mRegions) {
                 paintRegion(g, pair.first, pair.second);
@@ -83,8 +122,23 @@ public class RegionTest extends JFrame {
             for (int i = 0; i < height; ++i) {
                 for (int j = 0; j < width; ++j) {
                     final Optional<Chunk> chunk = region.getChunkAt(j, i);
+
                     if (chunk.isPresent()) {
-                        paintChunk(g, new Point(location.x + j, location.y + i), chunk.get());
+                        final int x = location.x + j;
+                        final int y = location.y + i;
+                        
+                        switch(mode) {
+                            case HEIGHT_MAP:
+                                final float elevation = chunk.get().getThickness().toMeters() - region.getHeightAt(j, i);
+                                final float temp = 0.1f + 0.9f * (elevation - minElevation) / (maxElevation - minElevation);
+                                g.setColor(Color.getHSBColor(temp, 1.0f, 1.0f));
+                                g.drawLine(x, y, x, y);
+                                break;
+
+                            case DEFAULT:
+                            default:
+                                paintChunk(g, new Point(x, y), chunk.get());
+                        }
                     }
                 }
             }
