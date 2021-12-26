@@ -1,8 +1,10 @@
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
 import java.awt.Point;
 
 public class BoolArrayUtil {
@@ -50,13 +52,13 @@ public class BoolArrayUtil {
     }
 
     /**
-     * Partitions the given boolean array into bounding boxes for contiguous sections.
+     * Partitions the given boolean array into groups of points in contiguous sections
      * @param array of booleans to parse
      * @param width of the array
      * @param height of the array
-     * @return The bounding boxes for the partitions
+     * @return The groups of contiguous points in the original coordinate frame
      */
-    public static List<BoundingBox> partition(
+    public static List<List<Point>> partition(
         final Boolean[][] array, 
         final int width, 
         final int height) {
@@ -118,25 +120,6 @@ public class BoolArrayUtil {
             found.get(entry.getValue()).add(entry.getKey());
         }
 
-        // Find bounding box of blocks
-        final List<BoundingBox> boxes = new ArrayList<>(found.size());
-
-        for (final List<Point> block : found) {
-            int minX = width - 1;
-            int maxX = 0;
-            int minY = height - 1;
-            int maxY = 0;
-
-            for (final Point p : block) {
-                if (p.x < minX) minX = p.x;
-                if (p.x > maxX) maxX = p.x;
-                if (p.y < minY) minY = p.y;
-                if (p.y > maxY) maxY = p.y;
-            }
-
-            boxes.add(new BoundingBox(minX, minY, maxX - minX + 1, maxY - minY + 1));
-        }
-
-        return boxes;
+        return found;
     }
 }

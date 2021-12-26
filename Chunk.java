@@ -2,6 +2,8 @@
 import java.util.Collection;
 import java.util.Stack;
 
+import java.awt.Color;
+
 public class Chunk {
     public static final Length WIDTH_IN_KM = Length.fromKilometers(0.5f);
 
@@ -9,23 +11,32 @@ public class Chunk {
      * Enumeration for the types of rock available for a chunk
      */
     public static enum RockType {
-        SEDIMENT(1500f),
-        SEDIMENTARY(2400f),
-        METAMORPHIC(3000f),
-        IGNEOUS(2900f);
+        SEDIMENT(1500f, new Color(96, 48, 0)),
+        SEDIMENTARY(2400f, new Color(240, 200, 128)),
+        METAMORPHIC(3000f, new Color(20, 20, 20)),
+        IGNEOUS(2900f, new Color(60, 50, 40));
 
         /**
          * Density in kg m^-3
          */
         public final float mDensity;
+        public final Color mColor;
 
         /**
          * @param density The density in kg m^-3 of the rock type.
          */
-        RockType(final float density) {
+        RockType(final float density, final Color color) {
             mDensity = density;
+            mColor = color;
         }
     
+        /**
+         * @return the color of this type of rock
+         */
+        public Color getColor() {
+            return mColor;
+        }
+
         /**
          * @return a random rock type
          */

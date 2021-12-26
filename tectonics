@@ -28,3 +28,17 @@
 
 
 ? How do plates go from being dense oceanic plates to bouyant continental plates
+
+
+- Plates
+    * Regions
+    * Connections between regions in the same plate are created using a 
+      spring-like mechanism (F = -k dx). Thus, when regions are pushed/
+      pulled they push/pull on the other regions comprising a plate. When
+      the pulling force becomes too great (and maybe something to do with
+      relative velocities) a rift zone forms and the plate is pulled
+      apart. Moreover, when the pushing force is too great, the land can be
+      "folded" forming thicker portions of the crust.
+    * Connections between regions in differing plates lack the spring
+      mechanism for pulling, but can push. When this pushing force becomes
+      too great, a similar mountain building process can occur.
