@@ -19,10 +19,11 @@ public class Region {
     public static enum BoundaryType {
         CONVERGENT,
         DIVERGENT,
-        TRANSFORM
+        TRANSFORM,
+        STATIONARY
     }
 
-    private static final float DIVISION_RATIO = 0.002f;
+    private static final float DIVISION_RATIO = 0.003f;
 
     /**
      * The x dimension of the region.
@@ -447,8 +448,26 @@ public class Region {
             .collect(Collectors.toList());
     }
 
+    /**
+     * @return The bounding box of this region in local coordinates
+     */
     public BoundingBox getBoundingBox() {
         return new BoundingBox(mPosition.truncate(), new Point(mDimX, mDimY));
+    }
+
+    /**
+     * @return the centroid in global coordinates
+     */
+    public Vec getCentroid() {
+        final List<Point> points = getPoints();
+
+        Vec sum = Vec.ZERO;
+
+        for (final Point p : points) {
+            sum = Vec.sum(sum, Vec.extend(p));
+        }
+
+        return Vec.sum(getPosition(), Vec.scale(sum, 1f / points.size()));
     }
 
     /**

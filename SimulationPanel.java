@@ -1,5 +1,6 @@
 
 
+import java.util.List;
 import java.util.Optional;
 
 import java.awt.Color;
@@ -14,6 +15,7 @@ public class SimulationPanel extends JPanel {
     public static enum SimulationRenderMode {
         DEFAULT,
         HEIGHT_MAP,
+        DISTINCT_COLORS,
         BOUNDARIES,
         BOUNDARY_TYPES
     }
@@ -58,13 +60,17 @@ public class SimulationPanel extends JPanel {
         float maxElevation = Float.NEGATIVE_INFINITY;
         float minElevation = Float.POSITIVE_INFINITY;
 
-        for (final Region region : sim.getRegions()) {
+        final List<Region> regions = sim.getRegions();
+
+        for (final Region region : regions) {
             final Pair<Float, Float> pair = region.getElevationRange();
             if (pair.first > maxElevation) maxElevation = pair.first;
             if (pair.second < minElevation) minElevation = pair.second;
         }
 
-        for (final Region region : sim.getRegions()) {
+        int counter = 0;
+
+        for (final Region region : regions) {
             for (int i = 0; i < region.getDimY(); ++i) {
                 for (int j = 0; j < region.getDimX(); ++j) {
                     final Point location = Vec.sum(region.getPosition(), Vec.extend(new Point(j, i))).truncate();
@@ -76,10 +82,16 @@ public class SimulationPanel extends JPanel {
                                 g.setColor(Util.heightColor(region.getElevationAt(j, i), maxElevation, minElevation));
                                 break;
                             
+                            case BOUNDARIES:
+                            case BOUNDARY_TYPES:
                             case DEFAULT:
                                 g.setColor(chunk.get().getTopRockType().getColor());
                                 break;
-                            
+                        
+                            case DISTINCT_COLORS:
+                                g.setColor(Color.getHSBColor(counter / (float) regions.size(), 1.0f, 1.0f));
+                                break;
+
                             default:
                                 break;
                         }
@@ -88,6 +100,8 @@ public class SimulationPanel extends JPanel {
                     }
                 }
             }
+
+            ++counter;
         }
 
         if (mDisplayMode == SimulationRenderMode.BOUNDARIES) {
@@ -117,7 +131,7 @@ public class SimulationPanel extends JPanel {
                             g.setColor(Color.YELLOW);
                             break;
 
-                        default:
+                        case STATIONARY:
                             g.setColor(Color.MAGENTA);
                             break;
                     }
@@ -125,6 +139,9 @@ public class SimulationPanel extends JPanel {
                     final Point location = Vec.sum(region.getPosition(), Vec.extend(pair.first)).truncate();
                     g.drawLine(location.x, location.y, location.x, location.y);
                 }
+
+                final Vec centroid = region.getCentroid();
+                region.getVelocity().paint(g, Color.ORANGE, 150f, centroid.truncate());
             }
         }
     }

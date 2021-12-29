@@ -1,5 +1,7 @@
 
 import java.awt.Point;
+import java.awt.Graphics;
+import java.awt.Color;
 
 public class Vec {
 
@@ -28,8 +30,36 @@ public class Vec {
         return Vec.scale(this, -1f);
     }
 
+    public Vec rotate(final float radians) {
+        return new Vec(
+                (float) (Math.cos(radians) * x - Math.sin(radians) * y),
+                (float) (Math.sin(radians) * x + Math.cos(radians) * y)
+            );
+    }
+
+    public Vec independent() {
+        return rotate((float) (Math.PI / 2.0));
+    }
+
     public Point truncate() {
         return new Point((int) x, (int) y);
+    }
+
+    public void paint(final Graphics g, final Color color, final float scale, final Point position) {
+        final Color prevColor = g.getColor();
+        g.setColor(color);
+
+        final Vec scaled = scale(this, scale);
+        final Point head = Util.sumPoints(position, scaled.truncate());
+        final Vec headBase = Vec.scale(scaled.negate(), 0.3f);
+        final Point leftHead = Util.sumPoints(head, headBase.rotate((float) (Math.PI / 6.0)).truncate());
+        final Point rightHead = Util.sumPoints(head, headBase.rotate((float) (- Math.PI / 6.0)).truncate());
+
+        g.drawLine(position.x, position.y, head.x, head.y);
+        g.drawLine(head.x, head.y, leftHead.x, leftHead.y);
+        g.drawLine(head.x, head.y, rightHead.x, rightHead.y);
+
+        g.setColor(prevColor);
     }
 
     @Override
@@ -80,6 +110,7 @@ public class Vec {
 
         return new Vec(x, y);
     }
+
 
     public static float project(final Vec v, final Vec onto) {
         if (onto.equals(Vec.ZERO)) return 0f;

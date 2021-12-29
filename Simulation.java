@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -55,8 +56,9 @@ public class Simulation {
             final BoundingBox box = region.getBoundingBox();
 
             if (mWrappedBox.withinBoundingBox(box, point)) {
+                final Point offset = region.getPosition().truncate();
                 final Point transformed =
-                    Vec.sum(region.getPosition().negate(), Vec.extend(point)).truncate();
+                    Util.sumPoints(new Point(-offset.x, -offset.y), point);
 
                 if (transformed.x < 0 && transformed.y < 0) continue;
 
@@ -77,15 +79,15 @@ public class Simulation {
         final List<Pair<Point, Region.BoundaryType>> classified = new ArrayList<>();
 
         final Vec offsetVelocity = region.getVelocity().negate();
-        final Vec offsetPosition = region.getPosition();
+        final Vec offsetPosition = region.getPosition().negate();
 
 
         for (final Point target : region.getBoundary()) {
 
-            Region.BoundaryType type = Region.BoundaryType.TRANSFORM;
+            Region.BoundaryType type = Region.BoundaryType.STATIONARY;
 
             for (final Point neighbor : mWrappedBox.getNeighbors(target)) {
-                final Point globalNeighbor = mWrappedBox.wrap(Vec.sum(offsetPosition, Vec.extend(neighbor)).truncate());
+                final Point globalNeighbor = mWrappedBox.wrap(Vec.sum(offsetPosition.negate(), Vec.extend(neighbor)).truncate());
                 final Optional<Region> maybeRegion = getRegionFromBoundary(globalNeighbor);
 
                 // Don't worry if the region is empty. Not all neighbors will be
@@ -93,12 +95,15 @@ public class Simulation {
                 if (maybeRegion.isPresent()) {
                     if (region == maybeRegion.get()) continue;
 
-                    final float indicator = Vec.project(
-                        Vec.sum(maybeRegion.get().getVelocity(), offsetVelocity),
-                        Vec.sum(maybeRegion.get().getPosition(), offsetPosition.negate()));
+                    final Vec relativeVelocity = Vec.sum(maybeRegion.get().getVelocity(), offsetVelocity);
+                    final Vec relativePosition = Vec.sum(maybeRegion.get().getPosition(), offsetPosition);
 
-                    if (indicator < -BOUNDARY_THRESHOLD) type = Region.BoundaryType.CONVERGENT;
-                    else if (indicator > BOUNDARY_THRESHOLD) type = Region.BoundaryType.DIVERGENT;
+                    final float lateralIndicator = Vec.project(relativeVelocity.independent(), relativePosition);
+                    final float axialIndicator = Vec.project(relativeVelocity, relativePosition);
+
+                    if (axialIndicator < -BOUNDARY_THRESHOLD) type = Region.BoundaryType.CONVERGENT;
+                    else if (axialIndicator > BOUNDARY_THRESHOLD) type = Region.BoundaryType.DIVERGENT;
+                    else if (Math.abs(lateralIndicator) > BOUNDARY_THRESHOLD) type = Region.BoundaryType.TRANSFORM;
                 }
             }
 
@@ -135,6 +140,7 @@ public class Simulation {
             int pointX = 0;
             int pointY = 0;
 
+            // Only look at fresh points
             do {
                 pointX = (int) (Math.random() * width);
                 pointY = (int) (Math.random() * height);
@@ -142,15 +148,14 @@ public class Simulation {
             while(alreadyGenerated[pointY][pointX]);
 
             final Point p = new Point(pointX, pointY);
-
             System.out.println("Plate " + i + " has initial point " + p);
 
             points.add(p);
             pointGroups.put(i, points);
             alreadyGenerated[p.y][p.x] = true;
 
+            // Remove already found points
             final Collection<Point> neighbors = mWrappedBox.getNeighbors(p);
-
             for (final List<Point> group : pointGroups.values()) {
                 neighbors.removeAll(group);
             }
@@ -191,8 +196,6 @@ public class Simulation {
             Length.fromKilometers(4.0f).toMeters(),
             Length.fromKilometers(10.0f).toMeters());
 
-        int counter = 0;
-
         for (final List<Point> points : pointGroups.values()) {
             final Boolean[][] isPresent = new Boolean[height][width];
 
@@ -208,8 +211,6 @@ public class Simulation {
 
             final Region initRegion = Region.buildRegion(Util.mask(chunks, isPresent), Vec.ZERO);
             final Vec initVelocity = Vec.randomDirection(0.09f * (float) Math.random() + 0.01f);
-            System.out.println("Plate " + counter + " has initial velocity " + initVelocity.toString());
-
             final List<Region> regions = new ArrayList<>();
 
             for (final Region region : initRegion.divide()) {
@@ -218,7 +219,6 @@ public class Simulation {
             }
 
             plates.add(new Plate(regions));
-            ++counter;
         }
 
         return plates;
