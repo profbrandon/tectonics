@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.awt.Point;
 
@@ -131,8 +132,14 @@ public class Simulation {
 
         for (int i = 0; i < plateCount; ++i) {
             final List<Point> points = new ArrayList<>();
-            final int pointX = (int) (Math.random() * width);
-            final int pointY = (int) (Math.random() * height);
+            int pointX = 0;
+            int pointY = 0;
+
+            do {
+                pointX = (int) (Math.random() * width);
+                pointY = (int) (Math.random() * height);
+            }
+            while(alreadyGenerated[pointY][pointX]);
 
             final Point p = new Point(pointX, pointY);
 
@@ -141,8 +148,14 @@ public class Simulation {
             points.add(p);
             pointGroups.put(i, points);
             alreadyGenerated[p.y][p.x] = true;
-            // TODO: Detect immediate neighbors
-            possibleGroups.put(i, mWrappedBox.getNeighbors(p).stream().collect(Collectors.toList()));
+
+            final Collection<Point> neighbors = mWrappedBox.getNeighbors(p);
+
+            for (final List<Point> group : pointGroups.values()) {
+                neighbors.removeAll(group);
+            }
+
+            possibleGroups.put(i, neighbors.stream().collect(Collectors.toList()));
         }
 
         while (possibleGroups.values().stream().filter(list -> !list.isEmpty()).count() != 0) {
