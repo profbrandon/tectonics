@@ -19,8 +19,8 @@ import java.awt.Dimension;
 
 public class RegionTest extends JFrame {
 
-    private final int width = 300;
-    private final int height = 300;
+    private final int width = 500;
+    private final int height = 500;
 
     private final RegionPanel mRegionPanel = new RegionPanel(width, height);
 
@@ -49,16 +49,6 @@ public class RegionTest extends JFrame {
         }
         */
         //mRegionPanel.addRegion(region, location);
-
-        for (final Plate plate : Plate.splitArea(width, height, 6)) {
- 
-            final List<Pair<Point, Region>> pairs = plate.getRegions();
-
-            for (final Pair<Point, Region> pair : pairs) {
-                pair.second.reEvaluateHeightMap(3400f);
-                mRegionPanel.addRegion(pair.second, pair.first);
-            }
-        }
 
         setLayout(new BoxLayout(this.getContentPane(), BoxLayout.PAGE_AXIS));
 
@@ -100,7 +90,7 @@ public class RegionTest extends JFrame {
         private float maxElevation = 0f;
         private float minElevation = 0f;
 
-        private final List<Pair<Point, Region>> mRegions = new ArrayList<>();
+        private final List<Region> mRegions = new ArrayList<>();
 
         public RegionPanel(final int width, final int height) {
             setPreferredSize(new Dimension(width, height));
@@ -108,8 +98,8 @@ public class RegionTest extends JFrame {
             setVisible(true);
         }
 
-        public void addRegion(final Region region, final Point location) {
-            mRegions.add(new Pair<>(location, region));
+        public void addRegion(final Region region) {
+            mRegions.add(region);
         }
 
         public RegionPanelMode nextMode() {
@@ -141,15 +131,14 @@ public class RegionTest extends JFrame {
             maxElevation = Float.NEGATIVE_INFINITY;
             minElevation = Float.POSITIVE_INFINITY;
 
-            for (final Pair<Point, Region> pair : mRegions) {
-                final Region region = pair.second;
+            for (final Region region : mRegions) {
 
                 for (int i = 0; i < region.getDimY(); ++i) {
                     for (int j = 0; j < region.getDimX(); ++j) {
                         final Optional<Chunk> chunk = region.getChunkAt(j, i);
     
                         if (chunk.isPresent()) {
-                            final float elevation = chunk.get().getThickness().toMeters() - region.getHeightAt(j, i);
+                            final float elevation = region.getElevationAt(j, i);
                             if (elevation > maxElevation) maxElevation = elevation;
                             if (elevation < minElevation) minElevation = elevation;
                         }
@@ -158,8 +147,8 @@ public class RegionTest extends JFrame {
             }
 
             for (int i = 0; i < mRegions.size(); ++i) {
-                final Pair<Point, Region> pair = mRegions.get(i);
-                paintRegion(g, pair.first, pair.second, i);
+                final Region region = mRegions.get(i);
+                paintRegion(g, region.getPosition().truncate(), region, i);
             }
         }
 
@@ -187,8 +176,8 @@ public class RegionTest extends JFrame {
                         
                         switch(mode) {
                             case HEIGHT_MAP:
-                                final float elevation = chunk.get().getThickness().toMeters() - region.getHeightAt(j, i);
-                                final float temp = 0.1f + 0.9f * (elevation - minElevation) / (maxElevation - minElevation);
+                                final float elevation = region.getElevationAt(j, i); // chunk.get().getThickness().toMeters() - region.getHeightAt(j, i);
+                                final float temp = 1f - 0.9f * (elevation - minElevation) / (maxElevation - minElevation);
                                 g.setColor(Color.getHSBColor(temp, 1.0f, 1.0f));
                                 g.drawLine(x, y, x, y);
                                 break;

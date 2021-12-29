@@ -3,7 +3,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import javax.imageio.ImageIO;
 
@@ -17,6 +16,12 @@ import java.io.File;
 
 public class Region {
 
+    public static enum BoundaryType {
+        CONVERGENT,
+        DIVERGENT,
+        TRANSFORM
+    }
+
     private static final float DIVISION_RATIO = 0.002f;
 
     /**
@@ -28,6 +33,16 @@ public class Region {
      * The y dimension of the region.
      */
     private int mDimY;
+
+    /**
+     * The region's position.
+     */
+    private Vec mPosition;
+
+    /**
+     * The region's velocity.
+     */
+    private Vec mVelocity = Vec.ZERO;
 
     /**
      * The chunks associated with this region.
@@ -45,12 +60,14 @@ public class Region {
      * @param width the width
      * @param height the height
      */
-    public Region(final int width, final int height) {
+    public Region(final int width, final int height, final Vec position) {
         assert width >= 0;
         assert height >= 0;
 
         mDimY = height;
         mDimX = width;
+        
+        mPosition = position;
 
         mChunks = new ArrayList<>(mDimY);
         mHeightMap = new float[height][width];
@@ -74,8 +91,8 @@ public class Region {
      * @param width the width of the array
      * @param height the height of the array
      */
-    public Region(final Boolean[][] isPresent, final int width, final int height) {
-        this(width, height);
+    public Region(final Boolean[][] isPresent, final int width, final int height, final Vec position) {
+        this(width, height, position);
 
         final Chunk.Layer layer = new Chunk.Layer(
             Chunk.RockType.randomRockType(),
@@ -165,9 +182,9 @@ public class Region {
      * Partitions the region into contiguous regions
      * @return a collection of regions paired with their old local coordinates
      */
-    public List<Pair<Point, Region>> partition() {
+    public List<Region> partition() {
         final List<List<Point>> pointCollections = BoolArrayUtil.partition(toBooleanArray(), mDimX, mDimY);
-        final List<Pair<Point, Region>> regions = new ArrayList<>(pointCollections.size());
+        final List<Region> regions = new ArrayList<>(pointCollections.size());
 
         for (final List<Point> regionPoints : pointCollections) {
             final List<Pair<Point, Chunk>> pairs = new ArrayList<>();
@@ -180,18 +197,20 @@ public class Region {
                 }
             }
 
-            final Pair<Point, Region> regionPair = Region.buildRegion(pairs);
+            final Region region = Region.buildRegion(pairs, mPosition);
             
             for (final Point point : regionPoints) {
                 if (getChunkAt(point.x, point.y).isPresent()) {
-                    regionPair.second.setHeightAt(
-                        point.x - regionPair.first.x,
-                        point.y - regionPair.first.y,
+                    final Point pos = region.getPosition().truncate();
+
+                    region.setHeightAt(
+                        point.x - pos.x,
+                        point.y - pos.y,
                         getHeightAt(point.x, point.y));
                 }
             }
 
-            regions.add(regionPair);
+            regions.add(region);
         }
 
         return regions;
@@ -199,9 +218,9 @@ public class Region {
 
     /**
      * Divides the region into voroni cells
-     * @return a collection of regions paird with their old local coordinates
+     * @return a collection of regions paired with their old local coordinates
      */
-    public List<Pair<Point, Region>> divide() {
+    public List<Region> divide() {
         final List<Point> points = getPoints();
         final int numberOfCentroids = (int) (DIVISION_RATIO * points.size());
 
@@ -225,10 +244,10 @@ public class Region {
             groups.get(tag).add(new Pair<>(p, getChunkAt(p.x, p.y).get()));
         }
 
-        final List<Pair<Point, Region>> regions = new ArrayList<>(numberOfCentroids);
+        final List<Region> regions = new ArrayList<>(numberOfCentroids);
 
         for (int i = 0; i < numberOfCentroids; ++i) {
-            regions.add(Region.buildRegion(groups.get(i)));
+            regions.add(Region.buildRegion(groups.get(i), mPosition));
         }
 
         return regions;
@@ -299,6 +318,20 @@ public class Region {
     }
 
     /**
+     * @param position the new position
+     */
+    public void setPosition(final Vec position) {
+        mPosition = position;
+    }
+
+    /**
+     * @param velocity the new velocity
+     */
+    public void setVelocity(final Vec velocity) {
+        mVelocity = velocity;
+    }
+
+    /**
      * @param x the local x coordinate
      * @param y the local y coordinate
      * @return the potential chunk at that coordinate
@@ -339,12 +372,12 @@ public class Region {
      * @return the a pair of elevations (max, min) in meters
      */
     public Pair<Float, Float> getElevationRange() {
-        final Stream<Float> elevations = getPoints().stream().map(point -> {
+        final List<Float> elevations = getPoints().stream().map(point -> {
             return getElevationAt(point.x, point.y);
-        });
+        }).collect(Collectors.toList());
 
-        final Optional<Float> possibleMax = elevations.max(Float::compare);
-        final Optional<Float> possibleMin = elevations.min(Float::compare);
+        final Optional<Float> possibleMax = elevations.stream().max(Float::compare);
+        final Optional<Float> possibleMin = elevations.stream().min(Float::compare);
 
         if (possibleMax.isPresent() && possibleMin.isPresent()) {
             return new Pair<>(possibleMax.get(), possibleMin.get());
@@ -368,6 +401,21 @@ public class Region {
     }
 
     /**
+     * @return the position in global coordinates of the region
+     */
+    public Vec getPosition() {
+        return mPosition;
+    }
+
+    /**
+     * @return the velocity of the region
+     */
+    public Vec getVelocity() {
+        return mVelocity;
+    }
+
+    /**
+     * Note: The points are in local coordinates
      * @return the points that make up this region
      */
     public List<Point> getPoints() {
@@ -386,6 +434,7 @@ public class Region {
     }
 
     /**
+     * Note: The points are in local coordinates
      * @return the points that make up the boundary of the region
      */
     public List<Point> getBoundary() {
@@ -396,6 +445,10 @@ public class Region {
                     .stream().anyMatch(neighbor -> getChunkAt(neighbor.x, neighbor.y).isEmpty());
             })
             .collect(Collectors.toList());
+    }
+
+    public BoundingBox getBoundingBox() {
+        return new BoundingBox(mPosition.truncate(), new Point(mDimX, mDimY));
     }
 
     /**
@@ -447,33 +500,15 @@ public class Region {
         mHeightMap = heightMap;
         mDimX = width;
         mDimY = height;
-    }
-
-    /**
-     * Determines if the two regions are adjacent
-     * @param r0 the first region
-     * @param r1 the second region
-     * @return whether the two regions are adjacent
-     */
-    public static boolean isAdjacent(final Region r0, final Region r1) {
-        final List<Point> b0 = r0.getBoundary();
-        final List<Point> b1 = r1.getBoundary();
-
-        for (final Point p0 : b0) {
-            for (final Point p1 : b1) {
-                if (Util.areNeighbors(p0, p1)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        mPosition = Vec.sum(mPosition, new Vec(x0, y0));
     }
 
     /**
      * TODO: test this method
      */
-    public static Pair<Point, Region> absorb(final Region r0, final Region r1, final Point relative) {
+    public static Pair<Point, Region> absorb(final Region r0, final Region r1) {
+        final Point relative = Vec.sum(r0.getPosition(), r1.getPosition().negate()).truncate();
+
         final int minX = Math.min(0, relative.x);
         final int minY = Math.min(0, relative.y);
         final int maxX = Math.max(r0.getDimX() - 1, r1.getDimX() - 1 + relative.x);
@@ -507,15 +542,17 @@ public class Region {
             }
         }
 
-        return new Pair<>(new Point(minX, minY), new Region(isPresent, newWidth, newHeight));
+        // TODO: Fix the position
+        return new Pair<>(new Point(minX, minY), new Region(isPresent, newWidth, newHeight, Vec.ZERO));
     }
 
     /**
      * Creates a pair of a region and its upper left corner in the old coordinate system.
      * @param chunkPairs the pairs to build a region from in old coordinates
-     * @return a pair of the upper left corner point and the region
+     * @param position the position of the upper left corner of the original (0,0)
+     * @return the generated region
      */
-    public static Pair<Point, Region> buildRegion(final List<Pair<Point, Chunk>> chunkPairs) {
+    public static Region buildRegion(final List<Pair<Point, Chunk>> chunkPairs, final Vec position) {
         int minX = Integer.MAX_VALUE;
         int minY = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE;
@@ -530,13 +567,13 @@ public class Region {
 
         final int dimX = maxX - minX + 1;
         final int dimY = maxY - minY + 1;
-        final Region region = new Region(dimX, dimY);
+        final Region region = new Region(dimX, dimY, Vec.sum(position, new Vec(minX, minY)));
 
         for (final Pair<Point, Chunk> chunk : chunkPairs) {
             region.setChunk(chunk.first.x - minX, chunk.first.y - minY, chunk.second);
         }
 
-        return new Pair<>(new Point(minX, minY), region);
+        return region;
     }
 
     /**
@@ -581,7 +618,7 @@ public class Region {
                                 totalB += 255;
                             }
                             else if (pixelType.equals("height")) {
-                                final float fraction = 0.1f + 0.9f * (region.getElevationAt(x, y) - elevationRange.second)
+                                final float fraction = 1f - 0.9f * (region.getElevationAt(x, y) - elevationRange.second)
                                     / (elevationRange.first - elevationRange.second);
 
                                 final Color color = Color.getHSBColor(fraction, 1.0f, 1.0f);
@@ -589,6 +626,11 @@ public class Region {
                                 totalR += color.getRed();
                                 totalG += color.getGreen();
                                 totalB += color.getBlue();
+                            }
+                            else if (pixelType.equals("boundaries")) {
+                                if (region.getBoundary().contains(new Point(x, y))) {
+                                    totalR += 255;
+                                }
                             }
                             else {
                                 final Color color = chunk.get().getTopRockType().getColor();

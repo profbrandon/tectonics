@@ -1,0 +1,253 @@
+
+import java.awt.Point;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
+
+public class WrappedBox {
+
+    /**
+     * The width of the wrapped box
+     */
+    private final int mWidth;
+
+    /**
+     * The height of the wrapped box
+     */
+    private final int mHeight;
+
+    /**
+     * The area of the wrapped box
+     */
+    private final int mArea;
+
+    /**
+     * Constructor to build a new wrapped box.
+     * @param width the width of the box
+     * @param height the height of the box
+     */
+    public WrappedBox(final int width, final int height) {
+        assert width > 0;
+        assert height > 0;
+
+        mWidth  = width;
+        mHeight = height;
+        mArea   = width * height;
+    }
+
+    /**
+     * @return the width of the wrapped box
+     */
+    public int getWidth() { return mWidth; }
+
+    /**
+     * @return the height of the wrapped box
+     */
+    public int getHeight() { return mHeight; }
+
+    /**
+     * @return the area of the wrapped box
+     */
+    public int getArea() { return mArea; }
+
+    /**
+     * Builds a collection of points that represent the duplicates of the point
+     * in normal (x,y) coordinate space (unwrapped).
+     * @param point the point to duplicate
+     * @return the duplicated points
+     */
+    public Set<Point> getNonWrappedDuplicates(final Point point) {
+        final Point wrapped = wrap(point);
+        final Set<Point> duplicates = new HashSet<>(9);
+        duplicates.add(new Point(wrapped.x - mWidth, wrapped.y - mHeight));
+        duplicates.add(new Point(wrapped.x,          wrapped.y - mHeight));
+        duplicates.add(new Point(wrapped.x + mWidth, wrapped.y - mHeight));
+
+        duplicates.add(new Point(wrapped.x - mWidth, wrapped.y));
+        duplicates.add(wrapped);
+        duplicates.add(new Point(wrapped.x + mWidth, wrapped.y));
+
+        duplicates.add(new Point(wrapped.x - mWidth, wrapped.y + mHeight));
+        duplicates.add(new Point(wrapped.x,          wrapped.y + mHeight));
+        duplicates.add(new Point(wrapped.x + mWidth, wrapped.y + mHeight));
+        return duplicates;
+    }
+
+    /**
+     * Method to wrap a point into the box's dimensions.
+     * @param point the point to wrap
+     * @return the wrapped point to within x in [0,width) and y in [0,height)
+     */
+    public Point wrap(final Point point) {
+        return new Point(Math.floorMod(point.x, mWidth), Math.floorMod(point.y, mHeight));
+    }
+
+    /**
+     * Sums points and wraps them back into the wrapped box context.
+     * @param ps the points to sum
+     * @return the wrapped sum
+     */
+    public Point wrapSum(final Point...ps) {
+        return wrap(Util.sumPoints(ps));
+    }
+
+    /**
+     * Determines the minimum distance between two points in the wrapped
+     * context.
+     * @param point1 the first point
+     * @param point2 the second point
+     * @return the distance between them
+     */
+    public float distance(final Point point1, final Point point2) {
+        return getNonWrappedDuplicates(point1).stream()
+            .map(p -> Util.distance(p, point2))
+            .min(Float::compare)
+            .get();
+    }
+
+    /**
+     * Method to retrieve the immediate neighbors of the point.
+     * @param point the point whose neighbors are computed
+     * @return the wrapped neighbors
+     */
+    public Set<Point> getNeighbors(final Point point) {
+        final Set<Point> neighbors = new HashSet<>();
+        neighbors.add(wrap(new Point(point.x + 1, point.y)));
+        neighbors.add(wrap(new Point(point.x - 1, point.y)));
+        neighbors.add(wrap(new Point(point.x, point.y + 1)));
+        neighbors.add(wrap(new Point(point.x, point.y - 1)));
+        return neighbors;
+    }
+
+    /**
+     * <p>Method to retrieve the immediate neighbors of the collection of points,
+     * excluding all of the original points, specifically, if P is the set of
+     * points, then</p>
+     * ExclusiveNeighbors(P) = U{p in P | Neighbors(p)} \ P
+     * @param points the points to examine
+     * @return the collection of neighbor points that are not contained in the
+     *         original set of points
+     */
+    public Set<Point> getExclusiveNeighbors(final Collection<Point> points) {
+        final Set<Point> neighbors = new HashSet<>();
+        for (final Point point : points) {
+            neighbors.addAll(getNeighbors(point));
+        }
+        neighbors.removeAll(points);
+        return neighbors;
+    }
+
+    /**
+     * Method to determine if a point is within a certain wrapped vertical frame.
+     * @param xMinFrame the leftmost x position of the vertical frame. Assumed
+     *                  to be on the interval [0,width).
+     * @param frameWidth the width of the frame
+     * @param point a point in the space
+     * @return whether the point is within the frame
+     */
+    public boolean withinVerticalFrame(final int xMinFrame, final int frameWidth, final Point point) {
+        // The frame encompasses the entire area
+        if (frameWidth >= mWidth) return true;
+
+        final int x = wrap(point).x;
+        final int xMaxFrame = xMinFrame + frameWidth - 1;
+
+        // The frame does not wrap
+        if (xMaxFrame < mWidth) {
+            return Util.onInterval(xMinFrame, xMaxFrame, x);
+        }
+
+        // The frame wraps
+        return Util.onInterval(0, xMaxFrame % mWidth, x) || Util.onInterval(xMinFrame, mWidth, x);
+    }
+
+    /**
+     * Method to determine if a point is within a certain wrapped horizontal frame.
+     * @param yMinFrame the uppermost y position of the horizontal frame. Assumed
+     *                  to be on the interval [0,height).
+     * @param frameWidth the height of the frame
+     * @param point a point in the space
+     * @return whether the point is within the frame
+     */
+    public boolean withinHorizontalFrame(final int yMinFrame, final int frameHeight, final Point point) {
+        // The frame encompasses the entire area
+        if (frameHeight >= mHeight) return true;
+
+        final int y = wrap(point).y;
+        final int yMaxFrame = yMinFrame + frameHeight - 1;
+
+        // The frame does not wrap
+        if (yMaxFrame < mHeight) {
+            return Util.onInterval(yMinFrame, yMaxFrame, y);
+        }
+
+        // The frame wraps
+        return Util.onInterval(0, yMaxFrame % mHeight, y) || Util.onInterval(yMinFrame, mHeight, y);
+    }
+
+    /**
+     * Method to determine if a point is within a certain wrapped bounding box.
+     * @param box the box
+     * @param point the point to test
+     * @return whether the point is within the box
+     */
+    public boolean withinBoundingBox(final BoundingBox box, final Point point) {
+        final Point upperLeft = wrap(box.mLocation);
+        return withinVerticalFrame(upperLeft.x, box.mDimensions.x, point)
+            && withinHorizontalFrame(upperLeft.y, box.mDimensions.y, point);
+    }
+
+    /**
+     * Determines whether the two bounding boxes overlap.
+     * @param box1 the first box
+     * @param box2 the second box
+     * @return whether the bounding boxes overlap
+     */
+    public boolean boundingBoxesOverlap(final BoundingBox box1, final BoundingBox box2) {
+        return box1.corners().stream().anyMatch(p -> withinBoundingBox(box2, wrap(p)));
+    }
+
+    // TODO: Write function
+    public boolean boundingBoxesTouch(final BoundingBox box1, final BoundingBox box2) {
+        return false;
+    }
+
+    /**
+     * Determines whether the two points are neighbors in the wrapped context.
+     * @param point1 the first point
+     * @param point2 the second point
+     * @return whether the points are neighbors
+     */
+    public boolean areNeighbors(final Point point1, final Point point2) {
+        return getNeighbors(point1).contains(wrap(point2));
+    }
+
+    /**
+     * Tests for wrapping equality between points.
+     * @param point1 the first point
+     * @param point2 the second point
+     * @return whether the two points are wrap-equivalent
+     */
+    public boolean pointEquals(final Point point1, final Point point2) {
+        return wrap(point1).equals(wrap(point2));
+    }
+
+    /**
+     * Determines if the collection contains the point.
+     * @param collection the collection to search
+     * @param point the point to find
+     * @return whether the point was found in the collection
+     * 
+     * Note: The collection must contain one of the nine non-wrapped duplicates in
+     *       order for this method to return true.
+     */
+    public <T> boolean contains(final Collection<T> collection, final Point point) {
+        for (final Point duplicate : getNonWrappedDuplicates(point)) {
+            if (collection.contains(duplicate)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+}
