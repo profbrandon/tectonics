@@ -13,16 +13,20 @@ import java.awt.Point;
 
 public class Simulation {
 
-    public static final float BOUNDARY_THRESHOLD = 0.001f;
+    public static final float BOUNDARY_THRESHOLD = 0.00001f;
     public static final float DELTA_T = 1.0f;
 
-    private WrappedBox mWrappedBox;
+    private final WrappedBox mWrappedBox;
     
-    private List<Plate> mPlates;
+    private final List<Plate> mPlates;
 
     public Simulation(final int width, final int height, final int initialPlateCount) {
         mWrappedBox = new WrappedBox(width, height);
         mPlates = splitArea(initialPlateCount);
+    }
+
+    public WrappedBox getWrappedBox() {
+        return mWrappedBox;
     }
 
     public List<Region> getRegions() {
@@ -34,7 +38,10 @@ public class Simulation {
     }
 
     public void update() {
-
+        for (Region region : getRegions()) {
+            final Vec position = region.getPosition();
+            region.setPosition(mWrappedBox.wrap(Vec.sum(position, Vec.scale(region.getVelocity(), DELTA_T))));
+        }
     }
 
     /**
@@ -51,18 +58,19 @@ public class Simulation {
      * @param point boundary point in global (x,y) coordinate space
      * @return
      */
-    public Optional<Region> getRegionFromBoundary(final Point point) {
+    public Optional<Region> getRegionFromPoint(final Point point) {
         for (final Region region : getRegions()) {
             final BoundingBox box = region.getBoundingBox();
 
             if (mWrappedBox.withinBoundingBox(box, point)) {
                 final Point offset = region.getPosition().truncate();
-                final Point transformed =
-                    Util.sumPoints(new Point(-offset.x, -offset.y), point);
+                final Point transformed = Util.subPoints(point, offset);
 
                 if (transformed.x < 0 && transformed.y < 0) continue;
 
-                if (mWrappedBox.contains(region.getBoundary(), transformed)) {
+                if (mWrappedBox.getNonWrappedDuplicates(transformed).stream().anyMatch(
+                    duplicate -> region.contains(duplicate))) {
+
                     return Optional.of(region);
                 }
             }
@@ -81,31 +89,42 @@ public class Simulation {
         final Vec offsetVelocity = region.getVelocity().negate();
         final Vec offsetPosition = region.getPosition().negate();
 
-
         for (final Point target : region.getBoundary()) {
-
             Region.BoundaryType type = Region.BoundaryType.STATIONARY;
 
-            for (final Point neighbor : mWrappedBox.getNeighbors(target)) {
+            final List<Point> neighbors = mWrappedBox.get8Neighbors(target)
+                .stream()
+                .filter(neighbor -> !region.contains(neighbor))
+                .collect(Collectors.toList());
+
+            final Vec averagePos = Vec.sum(
+                Vec.extend(target).negate(), 
+                Vec.scale(Vec.extend(neighbors.stream().reduce(new Point(), Util::sumPoints)), 1f / neighbors.size()));
+
+            Vec averageVel = Vec.ZERO;
+            int regionCount = 0;
+
+            for (final Point neighbor : neighbors) {
                 final Point globalNeighbor = mWrappedBox.wrap(Vec.sum(offsetPosition.negate(), Vec.extend(neighbor)).truncate());
-                final Optional<Region> maybeRegion = getRegionFromBoundary(globalNeighbor);
+                final Optional<Region> maybeRegion = getRegionFromPoint(globalNeighbor);
 
-                // Don't worry if the region is empty. Not all neighbors will be
-                // boundary points
                 if (maybeRegion.isPresent()) {
-                    if (region == maybeRegion.get()) continue;
-
-                    final Vec relativeVelocity = Vec.sum(maybeRegion.get().getVelocity(), offsetVelocity);
-                    final Vec relativePosition = Vec.sum(maybeRegion.get().getPosition(), offsetPosition);
-
-                    final float lateralIndicator = Vec.project(relativeVelocity.independent(), relativePosition);
-                    final float axialIndicator = Vec.project(relativeVelocity, relativePosition);
-
-                    if (axialIndicator < -BOUNDARY_THRESHOLD) type = Region.BoundaryType.CONVERGENT;
-                    else if (axialIndicator > BOUNDARY_THRESHOLD) type = Region.BoundaryType.DIVERGENT;
-                    else if (Math.abs(lateralIndicator) > BOUNDARY_THRESHOLD) type = Region.BoundaryType.TRANSFORM;
+                    averageVel = Vec.sum(averageVel, maybeRegion.get().getVelocity());
+                    ++regionCount;
                 }
             }
+
+            averageVel = Vec.scale(averageVel, 1f / (float) regionCount);
+
+            final Vec relativeVelocity = Vec.sum(averageVel, offsetVelocity);
+            final Vec relativePosition = averagePos;
+
+            final float lateralIndicator = Vec.project(relativeVelocity.independent(), relativePosition);
+            final float axialIndicator = Vec.project(relativeVelocity, relativePosition);
+
+            if (axialIndicator < -BOUNDARY_THRESHOLD) type = Region.BoundaryType.CONVERGENT;
+            else if (axialIndicator > BOUNDARY_THRESHOLD) type = Region.BoundaryType.DIVERGENT;
+            else if (Math.abs(lateralIndicator) > BOUNDARY_THRESHOLD) type = Region.BoundaryType.TRANSFORM;
 
             classified.add(new Pair<>(target, type));
         }
@@ -214,7 +233,7 @@ public class Simulation {
             final List<Region> regions = new ArrayList<>();
 
             for (final Region region : initRegion.divide()) {
-                region.setVelocity(Vec.sum(initVelocity, Vec.randomDirection(0.001f * (float) Math.random())));
+                region.setVelocity(Vec.sum(initVelocity, Vec.ZERO)); // Vec.randomDirection(0.001f * (float) Math.random())));
                 regions.add(region);
             }
 

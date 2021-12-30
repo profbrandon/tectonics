@@ -333,6 +333,14 @@ public class Region {
     }
 
     /**
+     * @param point the point in local coordinates
+     * @return whether the region contains the point
+     */
+    public boolean contains(final Point point) {
+        return getChunkAt(point.x, point.y).isPresent();
+    }
+
+    /**
      * @param x the local x coordinate
      * @param y the local y coordinate
      * @return the potential chunk at that coordinate

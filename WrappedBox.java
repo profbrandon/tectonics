@@ -83,6 +83,15 @@ public class WrappedBox {
     }
 
     /**
+     * Method to wrap a vector into the box's dimensions.
+     * @param vec the vector to wrap
+     * @return the wrapped point to within x in [0,width-1] and y in [0,height-1]
+     */
+    public Vec wrap(final Vec vec) {
+        return new Vec(Util.mod(vec.x, mWidth), Util.mod(vec.y, mHeight));
+    }
+    
+    /**
      * Sums points and wraps them back into the wrapped box context.
      * @param ps the points to sum
      * @return the wrapped sum
@@ -120,10 +129,46 @@ public class WrappedBox {
     }
 
     /**
-     * <p>Method to retrieve the immediate neighbors of the collection of points,
+     * Method to retrieve the 8 neighbors of the point.
+     * @param point the point whose 8 neighbors are computed
+     * @return the wrapped neighbors
+     */
+    public Set<Point> get8Neighbors(final Point point) {
+        final Set<Point> neighbors = getNeighbors(point);
+        neighbors.add(wrap(new Point(point.x + 1, point.y + 1)));
+        neighbors.add(wrap(new Point(point.x + 1, point.y - 1)));
+        neighbors.add(wrap(new Point(point.x - 1, point.y + 1)));
+        neighbors.add(wrap(new Point(point.x - 1, point.y - 1)));
+        return neighbors;
+    }
+
+    /**
+     * Method to obtain all points within a certain radius of the given point.
+     * @param point the point to get a cluster around
+     * @return the cluster of points
+     */
+    public Set<Point> getCluster(final Point point, final int radius) {
+        final Set<Point> neighbors = new HashSet<>();
+
+        for (int i = -radius; i <= radius; ++i) {
+            for (int j = -radius; j <= radius; ++j) {
+                final Point test = new Point(point.x + j, point.y + i);
+                if (distance(point, test) <= radius) {
+                    neighbors.add(wrap(test));
+                }
+            }
+        }
+
+        neighbors.remove(wrap(point));
+        return neighbors;
+    }
+
+    /**
+     * <p>Method to retrieve the immediate neighbors of the collection of {@link Point}s,
      * excluding all of the original points, specifically, if P is the set of
      * points, then</p>
-     * ExclusiveNeighbors(P) = U{p in P | Neighbors(p)} \ P
+     * 
+     * <p>ExclusiveNeighbors(P) = U{p in P | Neighbors(p)} \ P</p>
      * @param points the points to examine
      * @return the collection of neighbor points that are not contained in the
      *         original set of points
@@ -138,9 +183,9 @@ public class WrappedBox {
     }
 
     /**
-     * Method to determine if a point is within a certain wrapped vertical frame.
-     * @param xMinFrame the leftmost x position of the vertical frame. Assumed
-     *                  to be on the interval [0,width).
+     * Method to determine if a {@link Point} is within a certain wrapped vertical frame.
+     * @param xMinFrame the leftmost {@code x} position of the vertical frame. Assumed
+     *                  to be on the interval {@code [0,width)}.
      * @param frameWidth the width of the frame
      * @param point a point in the space
      * @return whether the point is within the frame
@@ -162,9 +207,9 @@ public class WrappedBox {
     }
 
     /**
-     * Method to determine if a point is within a certain wrapped horizontal frame.
-     * @param yMinFrame the uppermost y position of the horizontal frame. Assumed
-     *                  to be on the interval [0,height).
+     * Method to determine if a {@link Point} is within a certain wrapped horizontal frame.
+     * @param yMinFrame the uppermost {@code y} position of the horizontal frame. Assumed
+     *                  to be on the interval {@code [0,height)}.
      * @param frameWidth the height of the frame
      * @param point a point in the space
      * @return whether the point is within the frame
@@ -186,7 +231,7 @@ public class WrappedBox {
     }
 
     /**
-     * Method to determine if a point is within a certain wrapped bounding box.
+     * Method to determine if a {@link Point} is within a certain wrapped {@link BoundingBox}.
      * @param box the box
      * @param point the point to test
      * @return whether the point is within the box
@@ -198,13 +243,17 @@ public class WrappedBox {
     }
 
     /**
-     * Determines whether the two bounding boxes overlap.
+     * <p>Determines whether the two {@link BoundingBox}es overlap.</p>
+     * 
+     * <p>Note: Doesn't catch boxes that overlap without containing at least one corner of
+     * the other.</p>
      * @param box1 the first box
      * @param box2 the second box
      * @return whether the bounding boxes overlap
      */
     public boolean boundingBoxesOverlap(final BoundingBox box1, final BoundingBox box2) {
-        return box1.corners().stream().anyMatch(p -> withinBoundingBox(box2, wrap(p)));
+        return box1.corners().stream().anyMatch(p -> withinBoundingBox(box2, wrap(p)))
+            || box2.corners().stream().anyMatch(p -> withinBoundingBox(box1, wrap(p)));
     }
 
     // TODO: Write function

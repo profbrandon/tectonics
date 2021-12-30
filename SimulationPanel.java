@@ -13,16 +13,27 @@ import javax.swing.JPanel;
 public class SimulationPanel extends JPanel {
     
     public static enum SimulationRenderMode {
-        DEFAULT,
-        HEIGHT_MAP,
-        DISTINCT_COLORS,
-        BOUNDARIES,
-        BOUNDARY_TYPES
+        DEFAULT("Default"),
+        HEIGHT_MAP("Height Map"),
+        DISTINCT_COLORS("Distinct Colors"),
+        BOUNDARIES("Boundaries"),
+        BOUNDARY_TYPES("Boundary Types");
+
+        final String mStringValue;
+
+        SimulationRenderMode(final String stringValue) {
+            mStringValue = stringValue;
+        }
+
+        @Override
+        public String toString() {
+            return mStringValue;
+        }
     }
 
     private Optional<Simulation> mTargetSim = Optional.empty();
 
-    private SimulationRenderMode mDisplayMode = SimulationRenderMode.BOUNDARY_TYPES;
+    private SimulationRenderMode mDisplayMode = SimulationRenderMode.DEFAULT;
 
 
     public SimulationPanel(final int width, final int height) {
@@ -32,13 +43,19 @@ public class SimulationPanel extends JPanel {
 
     public void setSim(final Simulation sim) {
         mTargetSim = Optional.of(sim);
-        mDisplayMode = SimulationRenderMode.DEFAULT;
         repaint();
     }
 
     public void setMode(final SimulationRenderMode mode) {
         mDisplayMode = mode;
         repaint();
+    }
+
+    public void update() {
+        if(mTargetSim.isPresent()) {
+            mTargetSim.get().update();
+            repaint();
+        }
     }
 
     public SimulationRenderMode getMode() {
@@ -96,7 +113,9 @@ public class SimulationPanel extends JPanel {
                                 break;
                         }
 
-                        g.drawLine(location.x, location.y, location.x, location.y);
+                        final Point wrapped = sim.getWrappedBox().wrap(location);
+
+                        g.drawLine(wrapped.x, wrapped.y, wrapped.x, wrapped.y);
                     }
                 }
             }
@@ -107,7 +126,8 @@ public class SimulationPanel extends JPanel {
         if (mDisplayMode == SimulationRenderMode.BOUNDARIES) {
             for (final Region region : sim.getRegions()) {
                 for (final Point point : region.getBoundary()) {
-                    final Point location = Vec.sum(region.getPosition(), Vec.extend(point)).truncate();
+                    final Point location = 
+                        sim.getWrappedBox().wrap(Vec.sum(region.getPosition(), Vec.extend(point)).truncate());
 
                     g.setColor(Color.MAGENTA);
                     g.drawLine(location.x, location.y, location.x, location.y);
@@ -136,7 +156,8 @@ public class SimulationPanel extends JPanel {
                             break;
                     }
 
-                    final Point location = Vec.sum(region.getPosition(), Vec.extend(pair.first)).truncate();
+                    final Point location =
+                        sim.getWrappedBox().wrap(Vec.sum(region.getPosition(), Vec.extend(pair.first)).truncate());
                     g.drawLine(location.x, location.y, location.x, location.y);
                 }
 

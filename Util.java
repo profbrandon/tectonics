@@ -41,6 +41,16 @@ public class Util {
     }
 
     /**
+     * @param minuend the point to subtract from
+     * @param ps the points to subtract
+     * @return the difference
+     */
+    public static Point subPoints(final Point minuend, final Point...ps) {
+        final Point subtrahend = sumPoints(ps);
+        return new Point(minuend.x - subtrahend.x, minuend.y - subtrahend.y);
+    }
+
+    /**
      * Calculates the distance between two points.
      * @param p1 the first point
      * @param p2 the second point
@@ -65,6 +75,35 @@ public class Util {
      */
     public static boolean onInterval(final int a, final int b, final int x) {
         return (a <= x && x <= b) || (b <= x && x <= a);
+    }
+
+    /**
+     * Determines if the two intervals [a1,b1] and [a2,b2] overlap.
+     * @param a1 the first-first interval point
+     * @param b1 the second-first interval point
+     * @param a2 the first-second interval point
+     * @param b2 the second-second interval point
+     * @return whether the two intervals overlap
+     */
+    public static boolean intervalsOverlap(final int a1, final int b1, final int a2, final int b2) {
+        return onInterval(a1, b1, a2) || onInterval(a1, b1, b2);
+    }
+
+    /**
+     * Returns the modulus of two numbers
+     * @param a the first number
+     * @param b the modulus
+     * @return the remainder
+     */
+    public static float mod(final float a, final float b) {
+        final float adjustedB = Math.abs(b);
+
+        float result = a;
+
+        while (result < 0f) result += adjustedB;
+        while (result > b) result -= adjustedB;
+
+        return result;
     }
 
     /**

@@ -24,4 +24,8 @@ public class Plate {
     public List<Region> getRegions() {
         return mRegions;
     }
+
+    public boolean contains(final Region region) {
+        return mRegions.contains(region);
+    }
 }

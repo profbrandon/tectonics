@@ -1,19 +1,29 @@
 
 
-import java.util.Arrays;
-import java.util.List;
-
 import javax.swing.AbstractAction;
 import javax.swing.BoxLayout;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 
 import java.awt.event.ActionEvent;
+import java.awt.BorderLayout;
 
 
 public class TectonicSim extends JFrame {
     
+    private final SimulationPanel mSimPanel;
+
+    private final JPanel mControlPanel;
+
+    private boolean mIsRunning = false;
+    
+    private int tick = 0;
+
     public TectonicSim() {
         super("Tectonic Simulator");
 
@@ -21,34 +31,81 @@ public class TectonicSim extends JFrame {
         final int height = 300;
 
         final Simulation sim = new Simulation(width, height, 6);
-        final SimulationPanel sPanel = new SimulationPanel(width, height);
+        mSimPanel = new SimulationPanel(width, height);
+        mSimPanel.setSim(sim);
 
-        sPanel.setSim(sim);
+        mControlPanel = new JPanel();
+        // mControlPanel.setPreferredSize(new Dimension(100, height));
 
-        final JButton cycleButton = new JButton();
-        cycleButton.setAction(new AbstractAction() {
+        final JComboBox<SimulationPanel.SimulationRenderMode> renderModeBox =
+            new JComboBox<>(SimulationPanel.SimulationRenderMode.values());
+        renderModeBox.setAction(new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                final List<SimulationPanel.SimulationRenderMode> values = 
-                    Arrays.asList(SimulationPanel.SimulationRenderMode.values());
-
-                final SimulationPanel.SimulationRenderMode mode =
-                    values.get((values.indexOf(sPanel.getMode()) + 1) % values.size());
-
-                cycleButton.setText(mode.toString());
-                sPanel.setMode(mode);
+                mSimPanel.setMode((SimulationPanel.SimulationRenderMode) renderModeBox.getSelectedItem());
             }
         });
-        cycleButton.setText(sPanel.getMode().toString());
+    
+        final JLabel tickLabel = new JLabel("Tick:  0");
 
-        getContentPane().setLayout(new BoxLayout(getContentPane(), BoxLayout.PAGE_AXIS));
+        final JButton restartButton = new JButton();
+        restartButton.setAction(new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                new SwingWorker<>() {
+                    @Override
+                    protected Integer doInBackground() throws Exception {
+                        mSimPanel.setSim(new Simulation(width, height, 6));
+                        tick = 0;
+                        tickLabel.setText("Tick:  0");
+                        return 0;
+                    }
+                }.execute();
+            }
+        });
+        restartButton.setText("Restart Sim");
 
-        add(sPanel);
-        add(cycleButton);
+        final JButton playButton = new JButton();
+        playButton.setAction(new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                new SwingWorker<>() {
+                    @Override
+                    protected Integer doInBackground() throws Exception {
+                        playButton.setText(mIsRunning ? "Play" : "Pause");
+                        mIsRunning = !mIsRunning;
+                        while(mIsRunning) {
+                            mSimPanel.update();
+                            Thread.sleep(50);
+                            ++tick;
+                            tickLabel.setText("Tick:  " + tick);
+                        }
+                        return 0;
+                    }
+                }.execute();
+            }
+        });
+        playButton.setText("Play");
+
+        
+
+        mControlPanel.setLayout(new BoxLayout(mControlPanel, BoxLayout.Y_AXIS));
+
+        mControlPanel.add(renderModeBox);
+        mControlPanel.add(restartButton);
+        mControlPanel.add(tickLabel);
+        mControlPanel.add(playButton);
+
+
+        setLayout(new BorderLayout());
+
+        add(mSimPanel, BorderLayout.CENTER);
+        add(mControlPanel, BorderLayout.WEST);
         pack();
         repaint();
         setVisible(true);
     }
+
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
