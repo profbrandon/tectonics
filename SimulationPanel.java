@@ -102,7 +102,7 @@ public class SimulationPanel extends JPanel {
                             case BOUNDARIES:
                             case BOUNDARY_TYPES:
                             case DEFAULT:
-                                g.setColor(chunk.get().getTopRockType().getColor());
+                                g.setColor(chunk.get().getTopRockType().mColor);
                                 break;
                         
                             case DISTINCT_COLORS:

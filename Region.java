@@ -660,7 +660,7 @@ public class Region {
                                 }
                             }
                             else {
-                                final Color color = chunk.get().getTopRockType().getColor();
+                                final Color color = chunk.get().getTopRockType().mColor;
 
                                 totalR += color.getRed();
                                 totalG += color.getGreen();

@@ -162,7 +162,7 @@ public class Util {
                         final float h  = interpolate(h1, h0, y / (float) pixelSize);
                         final float delta = (float) (((Math.random() * 2) - 1) * 0.05 * (maxHeight - minHeight));
 
-                        chunk.deposit(new Chunk.Layer(Chunk.RockType.IGNEOUS, h + delta));
+                        chunk.deposit(new Chunk.Layer(Chunk.RockType.BASALT, h + delta));
                         chunks.get(i * pixelSize + y).add(chunk);
                     }
                 }

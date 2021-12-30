@@ -27,15 +27,15 @@ public class TectonicSim extends JFrame {
     public TectonicSim() {
         super("Tectonic Simulator");
 
-        final int width  = 300;
-        final int height = 300;
+        final int width  = 500;
+        final int height = 500;
+
+
+        // Components
 
         final Simulation sim = new Simulation(width, height, 6);
         mSimPanel = new SimulationPanel(width, height);
         mSimPanel.setSim(sim);
-
-        mControlPanel = new JPanel();
-        // mControlPanel.setPreferredSize(new Dimension(100, height));
 
         final JComboBox<SimulationPanel.SimulationRenderMode> renderModeBox =
             new JComboBox<>(SimulationPanel.SimulationRenderMode.values());
@@ -87,8 +87,10 @@ public class TectonicSim extends JFrame {
         });
         playButton.setText("Play");
 
-        
 
+        // Layout
+        
+        mControlPanel = new JPanel();
         mControlPanel.setLayout(new BoxLayout(mControlPanel, BoxLayout.Y_AXIS));
 
         mControlPanel.add(renderModeBox);

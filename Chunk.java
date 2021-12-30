@@ -1,48 +1,181 @@
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Stack;
 
 import java.awt.Color;
 
 public class Chunk {
-    public static final Length WIDTH_IN_KM = Length.fromKilometers(0.5f);
+    public static final Length WIDTH_IN_KM = Length.fromKilometers(1.0f);
+
+    /**
+     * Enumeration for the different classes of rock
+     */
+    public static enum RockClass {
+        SEDIMENT,
+        SEDIMENTARY,
+        METAMORPHIC,
+        IGNEOUS,
+        MAGMA
+    }
 
     /**
      * Enumeration for the types of rock available for a chunk
      */
     public static enum RockType {
-        SEDIMENT(1500f, new Color(96, 48, 0)),
-        SEDIMENTARY(2400f, new Color(240, 200, 128)),
-        METAMORPHIC(3000f, new Color(20, 20, 20)),
-        IGNEOUS(2900f, new Color(60, 50, 40));
+        
+        // MAGMA
+        FELSIC(2400f, Float.POSITIVE_INFINITY, new Color(255, 128, 0), RockClass.MAGMA),
+        MAFIC(2700f, Float.POSITIVE_INFINITY, new Color(255, 150, 0), RockClass.MAGMA),
+
+        // IGNEOUS:
+        RHYOLITE(2500f, 0f, new Color(250, 210, 160), RockClass.IGNEOUS),
+        GRANITE(2650f, 0f, new Color(250, 175, 125), RockClass.IGNEOUS),
+        BASALT(3000f, 0f, new Color(50, 50, 50), RockClass.IGNEOUS),
+        GABBRO(3100f, 0f, new Color(50, 60, 40), RockClass.IGNEOUS),
+
+        // METAMORPHIC:
+        GNEISS(2800f, Float.POSITIVE_INFINITY, new Color(200, 170, 140), RockClass.METAMORPHIC),
+        SCHIST(2900f, Float.POSITIVE_INFINITY, new Color(120, 130, 130), RockClass.METAMORPHIC),
+        SLATE(2800f, Float.POSITIVE_INFINITY, new Color(60, 60, 50), RockClass.METAMORPHIC),
+        QUARTZITE(2700f, Float.POSITIVE_INFINITY, new Color(255, 140, 100), RockClass.METAMORPHIC),
+        METACONGLOMERATE(2700f, Float.POSITIVE_INFINITY, new Color(130, 115, 80), RockClass.METAMORPHIC),
+
+        // SEDIMENTARY:
+        SHALE(2300f, 0f, new Color(70, 70, 60), RockClass.SEDIMENTARY),
+        SANDSTONE(2400f, 0f, new Color(240, 180, 100), RockClass.SEDIMENTARY),
+        CONGLOMERATE(2400f, 0f, new Color(175, 160, 125), RockClass.SEDIMENTARY),
+
+        // SEDIMENT:
+        GRAVEL(1400f, 0f, new Color(115, 110, 100), RockClass.SEDIMENT),
+        SAND(1500f, 0f, new Color(230, 200, 130), RockClass.SEDIMENT),
+        CLAY(1600f, 0f, new Color(200, 100, 50), RockClass.SEDIMENT);
+
 
         /**
          * Density in kg m^-3
          */
         public final float mDensity;
+        
+        /**
+         * The maximumm pressure it can handle before changing in kg m^2
+         */
+        public final float mMaxPressure;
+
+        /**
+         * Rock color
+         */
         public final Color mColor;
+
+        /**
+         * The rock's class
+         */
+        public final RockClass mClass;
 
         /**
          * @param density The density in kg m^-3 of the rock type.
          */
-        RockType(final float density, final Color color) {
+        RockType(final float density, final float pressure, final Color color, final RockClass rockClass) {
             mDensity = density;
+            mMaxPressure = pressure;
             mColor = color;
+            mClass = rockClass;
         }
     
-        /**
-         * @return the color of this type of rock
-         */
-        public Color getColor() {
-            return mColor;
-        }
-
         /**
          * @return a random rock type
          */
         public static RockType randomRockType() {
             final RockType[] rocks = RockType.values();
             return rocks[(int) (Math.random() * rocks.length)];
+        }
+
+        /**
+         * @param input the rock to melt
+         * @return the magma produced via melting
+         */
+        public RockType melt(final RockType input) {
+            switch(input) {
+                case GABBRO:
+                case BASALT:
+                case SCHIST:
+                    return MAFIC;
+
+                default:
+                    return FELSIC;
+            }
+        }
+    
+        /**
+         * @param input the rock to get eroded elements from
+         * @return the types of rock produced from erosion
+         */
+        public List<RockType> erode(final RockType input) {
+            final List<RockType> outputs = new ArrayList<>();
+
+            switch(input) {
+                case MAFIC:
+                case FELSIC:
+                    break;
+
+                case GRAVEL:
+                    outputs.add(GRAVEL);
+                    outputs.add(SAND);
+                    break;
+
+                case SAND:
+                    outputs.add(SAND);
+                case CLAY:
+                    outputs.add(CLAY);
+                    break;
+
+                default:
+                    outputs.add(GRAVEL);
+            }
+
+            return outputs;
+        }
+
+        /**
+         * @param input the rock to transform
+         * @return the transformed rock
+         */
+        public RockType transform(final RockType input) {
+            switch(input) {
+                case FELSIC:
+                case MAFIC:
+                    return null;
+
+                case RHYOLITE:
+                case GRANITE:
+                    return GNEISS;
+
+                case GABBRO:
+                case BASALT:
+                    return SCHIST;
+
+                case SHALE:
+                    return SLATE;
+
+                case SANDSTONE:
+                    return QUARTZITE;
+
+                case CONGLOMERATE:
+                    return METACONGLOMERATE;
+
+                case CLAY:
+                    return SHALE;
+
+                case SAND:
+                    return SANDSTONE;
+
+                case GRAVEL:
+                    return CONGLOMERATE;
+
+                default:
+                    return input;
+            }
         }
     }
 
