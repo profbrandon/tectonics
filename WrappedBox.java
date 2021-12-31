@@ -74,6 +74,29 @@ public class WrappedBox {
     }
 
     /**
+     * Builds a collection of vectors that represent the duplicates of the vector
+     * in normal (x,y) coordinate space (unwrapped).
+     * @param vec the vector to duplicate
+     * @return the duplicated vectors
+     */
+    public Set<Vec> getNonWrappedDuplicates(final Vec vec) {
+        final Vec wrapped = wrap(vec);
+        final Set<Vec> duplicates = new HashSet<>(9);
+        duplicates.add(new Vec(wrapped.x - mWidth, wrapped.y - mHeight));
+        duplicates.add(new Vec(wrapped.x,          wrapped.y - mHeight));
+        duplicates.add(new Vec(wrapped.x + mWidth, wrapped.y - mHeight));
+
+        duplicates.add(new Vec(wrapped.x - mWidth, wrapped.y));
+        duplicates.add(wrapped);
+        duplicates.add(new Vec(wrapped.x + mWidth, wrapped.y));
+
+        duplicates.add(new Vec(wrapped.x - mWidth, wrapped.y + mHeight));
+        duplicates.add(new Vec(wrapped.x,          wrapped.y + mHeight));
+        duplicates.add(new Vec(wrapped.x + mWidth, wrapped.y + mHeight));
+        return duplicates;
+    }
+
+    /**
      * Method to wrap a point into the box's dimensions.
      * @param point the point to wrap
      * @return the wrapped point to within x in [0,width) and y in [0,height)
@@ -101,15 +124,29 @@ public class WrappedBox {
     }
 
     /**
-     * Determines the minimum distance between two points in the wrapped
-     * context.
+     * Determines the distance between two points in the wrapped context.
      * @param point1 the first point
      * @param point2 the second point
      * @return the distance between them
      */
     public float distance(final Point point1, final Point point2) {
+        final Point wrapped2 = wrap(point2);
         return getNonWrappedDuplicates(point1).stream()
-            .map(p -> Util.distance(p, point2))
+            .map(p -> Util.distance(p, wrapped2))
+            .min(Float::compare)
+            .get();
+    }
+
+    /**
+     * Determines the distance between two vectors in the wrapped context.
+     * @param vec1 the first vector
+     * @param vec2 the second vector
+     * @return the distance between them
+     */
+    public float distance(final Vec vec1, final Vec vec2) {
+        final Vec wrapped2 = wrap(vec2);
+        return getNonWrappedDuplicates(vec1).stream()
+            .map(v -> Vec.sum(v, wrapped2.negate()).len())
             .min(Float::compare)
             .get();
     }
@@ -259,6 +296,15 @@ public class WrappedBox {
     // TODO: Write function
     public boolean boundingBoxesTouch(final BoundingBox box1, final BoundingBox box2) {
         return false;
+    }
+
+    /**
+     * Determines whether the point is out of the wrapped box's bounds.
+     * @param point the point to test
+     * @return whether the point is out of bounds
+     */
+    public boolean outOfBounds(final Point point) {
+        return point.x < 0 || point.y < 0 || point.x >= mWidth || point.y >= mHeight;
     }
 
     /**

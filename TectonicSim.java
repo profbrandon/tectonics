@@ -27,8 +27,8 @@ public class TectonicSim extends JFrame {
     public TectonicSim() {
         super("Tectonic Simulator");
 
-        final int width  = 500;
-        final int height = 500;
+        final int width  = 200;
+        final int height = 200;
 
 
         // Components

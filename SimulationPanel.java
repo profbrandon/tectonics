@@ -1,5 +1,6 @@
 
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,7 +18,8 @@ public class SimulationPanel extends JPanel {
         HEIGHT_MAP("Height Map"),
         DISTINCT_COLORS("Distinct Colors"),
         BOUNDARIES("Boundaries"),
-        BOUNDARY_TYPES("Boundary Types");
+        BOUNDARY_TYPES("Boundary Types"),
+        DISTANCE_GRAPH("Distance Graph");
 
         final String mStringValue;
 
@@ -163,6 +165,29 @@ public class SimulationPanel extends JPanel {
 
                 final Vec centroid = region.getCentroid();
                 region.getVelocity().paint(g, Color.ORANGE, 150f, centroid.truncate());
+            }
+        }
+    
+        if (mDisplayMode == SimulationRenderMode.DISTANCE_GRAPH) {
+            final Graph<Region, Pair<Boolean, Float>> graph = sim.getGraph();
+
+            final List<Region> nodes = graph.getNodes();
+            final Collection<Pair<Integer, Integer>> edges = graph.getEdges();
+
+            g.setColor(Color.CYAN);
+
+            for (final Pair<Integer, Integer> edge : edges) {
+                final Region r1 = nodes.get(edge.first);
+                final Region r2 = nodes.get(edge.second);
+
+                final Point c1 = r1.getCentroid().truncate();
+                final Point c2 = r2.getCentroid().truncate();
+
+                final Optional<Point> c0 = sim.getWrappedBox().getNonWrappedDuplicates(c2).stream().min((a, b) -> {
+                    return Float.compare(Util.distance(a, c1), Util.distance(b, c1));
+                });
+
+                g.drawLine(c0.get().x, c0.get().y, c1.x, c1.y);
             }
         }
     }

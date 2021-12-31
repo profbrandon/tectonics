@@ -14,19 +14,56 @@ import java.awt.Point;
 public class Simulation {
 
     public static final float BOUNDARY_THRESHOLD = 0.00001f;
-    public static final float DELTA_T = 1.0f;
+    public static final float SPRING_CONSTANT = 0.1f;
+    public static final float DELTA_T = 0.01f;
 
     private final WrappedBox mWrappedBox;
     
     private final List<Plate> mPlates;
 
+    private final Graph<Region, Pair<Boolean, Float>> mNeighborGraph;
+
     public Simulation(final int width, final int height, final int initialPlateCount) {
         mWrappedBox = new WrappedBox(width, height);
         mPlates = splitArea(initialPlateCount);
+
+        final List<Region> regions = getRegions();
+
+        mNeighborGraph = new Graph<>(regions);
+
+        for (int i = 1; i < regions.size(); ++i) {
+            final Region r1 = regions.get(i);
+
+            for (int j = 0; j < i; ++j) {
+                final Region r2 = regions.get(j);
+
+                if (areNeighbors(r1, r2)) {
+                    final Vec c1 = r1.getCentroid();
+                    final Vec c2 = r2.getCentroid();
+
+                    final boolean onSamePlate = getPlateFromRegion(r1) == getPlateFromRegion(r2);
+
+                    mNeighborGraph.addEdge(j, i, new Pair<>(onSamePlate, mWrappedBox.distance(c1, c2)));
+                }
+            }
+        }
     }
 
     public WrappedBox getWrappedBox() {
         return mWrappedBox;
+    }
+
+    public Graph<Region, Pair<Boolean, Float>> getGraph() {
+        return mNeighborGraph;
+    }
+    
+    public Plate getPlateFromRegion(final Region region) {
+        for (final Plate plate : mPlates) {
+            if (plate.contains(region)) {
+                return plate;
+            }
+        }
+        return null;
     }
 
     public List<Region> getRegions() {
@@ -38,9 +75,33 @@ public class Simulation {
     }
 
     public void update() {
-        for (Region region : getRegions()) {
+        for (final Region region : getRegions()) {
+            final int index0 = mNeighborGraph.getIndex(region);
+            final Vec c0 = region.getCentroid();
+            final List<Integer> neighbors = mNeighborGraph.getNeighbors(index0);
+
+            Vec acceleration = Vec.ZERO;
+
+            for (final Integer index1 : neighbors) {
+                final Region neighbor = mNeighborGraph.getNode(index1).get();
+                final Vec c1 = neighbor.getCentroid();
+                final Pair<Boolean, Float> value = mNeighborGraph.getEdgeValue(index0, index1).get();
+                final float base = value.second;
+                final float actual = mWrappedBox.distance(c0, c1);
+                final float delta = value.first ? actual - base : Math.max(0, actual - base);
+
+                final Vec c10 = mWrappedBox.getNonWrappedDuplicates(c1).stream().min((a, b) -> {
+                    return Float.compare(Vec.sum(a, c0.negate()).len(), Vec.sum(b, c0.negate()).len());
+                }).get();
+
+                final Vec a = Vec.scale(Vec.sum(c10, c0.negate()).normal(), SPRING_CONSTANT * delta);
+
+                acceleration = Vec.sum(acceleration, a);
+            }
+
             final Vec position = region.getPosition();
             region.setPosition(mWrappedBox.wrap(Vec.sum(position, Vec.scale(region.getVelocity(), DELTA_T))));
+            region.setVelocity(Vec.sum(region.getVelocity(), Vec.scale(acceleration, DELTA_T)));
         }
     }
 
@@ -48,10 +109,32 @@ public class Simulation {
      * Determines if the two region's bounding boxes overlap.
      * @param r1 the first region
      * @param r2 the second region
-     * @return
+     * @return whether the two regions have overlapping bounding boxes.
      */
     public boolean boundingBoxesOverlap(final Region r1, final Region r2) {
         return mWrappedBox.boundingBoxesOverlap(r1.getBoundingBox(), r2.getBoundingBox());
+    }
+
+    /**
+     * @param r1 the first region
+     * @param r2 the second region
+     * @return whether the two regions are neighbors.
+     */
+    public boolean areNeighbors(final Region r1, final Region r2) {
+        if (r1 == r2) return false;
+
+        final Point offset = r1.getPosition().truncate();
+
+        for (final Point target : r1.getBoundary()) {
+            final Point adjusted = Util.sumPoints(target, offset);
+
+            for (final Point neighbor : mWrappedBox.getNeighbors(adjusted)) {
+                if (contains(r2, neighbor)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -77,6 +160,19 @@ public class Simulation {
         }
 
         return Optional.empty();
+    }
+
+    /**
+     * Determines whether the region contains the point in the wrapped context.
+     * @param region the region
+     * @param point the point in global coordinates
+     * @return whether the region contains the point
+     */
+    public boolean contains(final Region region, final Point point) {
+        final Point offset = region.getPosition().negate().truncate();
+        return mWrappedBox.getNonWrappedDuplicates(point).stream().anyMatch(wrapped -> {
+            return region.contains(Util.sumPoints(wrapped, offset));
+        });
     }
 
     /**
@@ -229,7 +325,7 @@ public class Simulation {
             }
 
             final Region initRegion = Region.buildRegion(Util.mask(chunks, isPresent), Vec.ZERO);
-            final Vec initVelocity = Vec.randomDirection(0.09f * (float) Math.random() + 0.01f);
+            final Vec initVelocity = Vec.randomDirection(0.029f * (float) Math.random() + 0.001f);
             final List<Region> regions = new ArrayList<>();
 
             for (final Region region : initRegion.divide()) {

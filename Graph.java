@@ -1,3 +1,4 @@
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -25,6 +26,27 @@ public class Graph<T, U> {
     }
 
     /**
+     * @return the number of nodes present
+     */
+    public int getNodeCount() {
+        return nodes.size();
+    }
+
+    /**
+     * @return the list of nodes
+     */
+    public List<T> getNodes() {
+        return nodes.values().stream().collect(Collectors.toList());
+    }
+
+    /**
+     * @return the collection of edges
+     */
+    public Collection<Pair<Integer, Integer>> getEdges() {
+        return edges;
+    }
+
+    /**
      * @param target the target object
      * @return the node index of the target object (or -1 if it is not present)
      */
@@ -35,6 +57,16 @@ public class Graph<T, U> {
             }
         }
         return -1;
+    }
+
+    /**
+     * @param index the index of the node
+     * @return the optional node at that index
+     */
+    public Optional<T> getNode(final int index) {
+        final T node = nodes.get(index);
+        if (node == null) return Optional.empty();
+        else return Optional.of(node);
     }
 
     /**
@@ -81,15 +113,15 @@ public class Graph<T, U> {
      * @param index the index of the node whose neighbors are to be retrieved
      * @return the list of neighbors
      */
-    public List<T> getNeighbors(final int index) {
+    public List<Integer> getNeighbors(final int index) {
         return edges.parallelStream()
             .filter(pair -> pair.first == index || pair.second == index)
             .map(pair -> {
                 if (pair.first == index) {
-                    return nodes.get(pair.second);
+                    return pair.second;
                 }
                 else {
-                    return nodes.get(pair.first);
+                    return pair.first;
                 }
             })
             .collect(Collectors.toList());
@@ -104,7 +136,7 @@ public class Graph<T, U> {
     public Optional<U> getEdgeValue(final int i, final int j) {
         final Pair<Integer, Integer> edge = buildEdge(i, j);
         final U value = values.get(edge);
-        
+
         if (value == null) return Optional.empty();
         else return Optional.of(value);
     }
