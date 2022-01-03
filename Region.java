@@ -282,10 +282,9 @@ public class Region {
 
     /**
      * Lifts the region by the specified amount
-     * @param dz the vertical displacement
+     * @param dz the vertical displacement in meters
      */
     public void lift(final float dz) {
-        System.out.println("Lifting the region by " + dz + " m");
         for (int i = 0; i < mDimY; ++i) {
             for (int j = 0; j < mDimX; ++j) {
                 if (getChunkAt(j, i).isPresent()) {
@@ -302,9 +301,30 @@ public class Region {
      * @param chunk the chunk to place at (x,y)
      */
     public void setChunk(final int x, final int y, final Chunk chunk) {
-        List<Optional<Chunk>> row = mChunks.get(y);
+        if (x < 0 || y < 0 || x >= mDimX || y >= mDimY) {
+            // System.out.println("Resizing Region!");
+            resize(Math.min(x, 0), Math.min(y, 0), Math.max(x, mDimX - 1), Math.max(y, mDimY - 1));
+        }
+
+        final int x0 = Math.max(Math.min(x, mDimX - 1), 0);
+        final int y0 = Math.max(Math.min(y, mDimY - 1), 0);
+
+        final List<Optional<Chunk>> row = mChunks.get(y0);
+        row.remove(x0);
+        row.add(x0, Optional.of(chunk));
+    }
+
+    /**
+     * Removes the chunk at the specified position
+     * @param x the local x coordinate
+     * @param y the local y coordinate
+     */
+    public void removeChunk(final int x, final int y) {
+        if (x < 0 || y < 0 || x >= mDimX || y >= mDimY) return;
+
+        final List<Optional<Chunk>> row = mChunks.get(y);
         row.remove(x);
-        row.add(x, Optional.of(chunk));
+        row.add(x, Optional.empty());
     }
 
     /**
@@ -517,7 +537,13 @@ public class Region {
 
             for (int j = x0; j <= x1; ++j) {
                 row.add(getChunkAt(j, i));
-                heightMap[i - y0][j - x0] = mHeightMap[i][j];
+
+                if (i >= 0 && j >= 0 && i < mDimY && j < mDimX) {
+                    heightMap[i - y0][j - x0] = mHeightMap[i][j];
+                }
+                else {
+                    heightMap[i - y0][j - x0] = 0f;
+                }
             }
 
             chunks.add(row);

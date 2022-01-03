@@ -1,12 +1,15 @@
 
 import java.util.ArrayList;
 import java.util.List;
-
 import java.awt.Point;
 import java.awt.Color;
 
 
 public class Util {
+
+    public static interface Procedure {
+        public void execute();
+    }
     
     public static boolean areNeighbors(final Point p0, final Point p1) {
         final int dx = Math.abs(p1.x - p0.x);
@@ -216,6 +219,36 @@ public class Util {
         }
         else {
             return Color.getHSBColor(ratio, 1.0f, 1.0f);
+        }
+    }
+
+    /**
+     * Accepts an object and a list of pairs consisting of a probability [0,1] and an action.
+     * If the sum of the probabilities is greater than 1 or if any of the probabilities are
+     * negative then the function will fail.
+     * @param target the object to choose what to do with
+     * @param pairs the pairs of probabilities and associated actions
+     */
+    public static void choose(final List<Pair<Float, Procedure>> pairs) {
+        float pSum = 0.0f;
+        
+        for (int i = 0; i < pairs.size(); ++i) {
+            final float probability = pairs.get(i).first;
+            assert probability > 0.0f;
+            pSum += probability;
+        }
+
+        assert pSum <= 1.0f;
+
+        float value = (float) Math.random();
+
+        for (final Pair<Float, Procedure> pair : pairs) {
+            if (value <= pair.first) {
+                pair.second.execute();
+                return;
+            }
+            
+            value -= pair.first;
         }
     }
 }

@@ -3,18 +3,20 @@
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.awt.Point;
 
 
 public class Simulation {
-
-    public static final float BOUNDARY_THRESHOLD = 0.00001f;
-    public static final float SPRING_CONSTANT = 0.1f;
+    public static final Length RUPTURE_THICKNESS = Length.fromKilometers(1.0f);
+    public static final float BOUNDARY_THRESHOLD = 0.0001f;
+    public static final float SPRING_CONSTANT = 0.01f;
     public static final float DELTA_T = 0.01f;
 
     private final WrappedBox mWrappedBox;
@@ -47,34 +49,12 @@ public class Simulation {
                 }
             }
         }
-    }
 
-    public WrappedBox getWrappedBox() {
-        return mWrappedBox;
-    }
-
-    public Graph<Region, Pair<Boolean, Float>> getGraph() {
-        return mNeighborGraph;
-    }
-    
-    public Plate getPlateFromRegion(final Region region) {
-        for (final Plate plate : mPlates) {
-            if (plate.contains(region)) {
-                return plate;
-            }
-        }
-        return null;
-    }
-
-    public List<Region> getRegions() {
-        final List<Region> regions = new ArrayList<>();
-        for (final Plate plate : mPlates) {
-            regions.addAll(plate.getRegions());
-        }
-        return regions;
+        reEvaluateHeightMaps(3500f);
     }
 
     public void update() {
+        // Update positions and velocities
         for (final Region region : getRegions()) {
             final int index0 = mNeighborGraph.getIndex(region);
             final Vec c0 = region.getCentroid();
@@ -103,7 +83,139 @@ public class Simulation {
             region.setPosition(mWrappedBox.wrap(Vec.sum(position, Vec.scale(region.getVelocity(), DELTA_T))));
             region.setVelocity(Vec.sum(region.getVelocity(), Vec.scale(acceleration, DELTA_T)));
         }
+
+        // Handle Rift Zones
+        for (final Point empty : getEmptyPoints()) {
+            
+            Util.choose(List.of(
+                new Pair<>(1.0f, (Util.Procedure) () -> {
+                    final List<Region> regions = getNeighboringRegions(empty);
+                    final Region selected = regions.get((int) (Math.random() * regions.size()));
+                    final Point offset = selected.getPosition().negate().truncate();
+                    final Chunk chunk = new Chunk();
+                    chunk.deposit(new Chunk.Layer(
+                        Chunk.RockType.BASALT,
+                        Length.fromKilometers((float) (4.0f + 0.5 * Math.random())).toMeters()));
+                    
+                    // TODO: Resize region when a chunk is added.
+                    //final Point target = mWrappedBox.getNonWrappedDuplicates(empty).stream().filter(point -> 
+                    //    selected.contains(Util.sumPoints(point, offset))).findFirst().get();
+                        
+                    //System.out.println("Here");
+                    final Point local = Util.sumPoints(empty, offset);
+                    
+                    selected.setChunk(local.x, local.y, chunk);
+                })));
+        }
+    
+        // Handle Collision Zones
+        final int width = mWrappedBox.getWidth();
+        final int height = mWrappedBox.getHeight();
+
+        for (int i = 0; i < height; ++i) {
+            for (int j = 0; j < width; ++j) {
+                final Set<Region> overlappingRegions = new HashSet<>(4);
+
+                for (final Region region : getRegions()) {
+                    if (contains(region, new Point(j, i))) {
+                        overlappingRegions.add(region);
+                    }
+                }
+
+                final Region chosen = overlappingRegions.stream()
+                    .collect(Collectors.toList()).get((int) (overlappingRegions.size() * Math.random()));
+
+                for (final Region region : overlappingRegions) {
+                    if (region != chosen) {
+                        final Point offset = region.getPosition().negate().truncate();
+                        final Point local = Util.sumPoints(new Point(j, i), offset);
+                        region.removeChunk(local.x, local.y);
+                    }
+                }
+            }
+        }
+
+        // Recompute Height Maps
+        reEvaluateHeightMaps(3500f);
     }
+
+    public WrappedBox getWrappedBox() {
+        return mWrappedBox;
+    }
+
+    public Graph<Region, Pair<Boolean, Float>> getGraph() {
+        return mNeighborGraph;
+    }
+    
+    public Plate getPlateFromRegion(final Region region) {
+        for (final Plate plate : mPlates) {
+            if (plate.contains(region)) {
+                return plate;
+            }
+        }
+        return null;
+    }
+
+    public List<Region> getRegions() {
+        final List<Region> regions = new ArrayList<>();
+        for (final Plate plate : mPlates) {
+            regions.addAll(plate.getRegions());
+        }
+        return regions;
+    }
+
+    /**
+     * @return a boolean array representing where there are chunks present
+     */
+    public Boolean[][] toBooleanArray() {
+        final int width = mWrappedBox.getWidth();
+        final int height = mWrappedBox.getHeight();
+
+        final Boolean[][] isPresent = new Boolean[height][width];
+
+        for (int i = 0; i < height; ++i) {
+            for (int j = 0; j < width; ++j) {
+                isPresent[i][j] = false;
+            }
+        }
+
+        for (final Region region : getRegions()) {
+            final int rWidth = region.getDimX();
+            final int rHeight = region.getDimY();
+            final Point offset = region.getPosition().truncate();
+            final Boolean[][] regionPresent = region.toBooleanArray();
+
+            for (int i = 0; i < rHeight; ++i) {
+                for (int j = 0; j < rWidth; ++j) {
+                    final Point wrappedGlobal = mWrappedBox.wrap(Util.sumPoints(new Point(j, i), offset));
+                    isPresent[wrappedGlobal.y][wrappedGlobal.x] |= regionPresent[i][j];
+                }
+            }
+        }
+
+        return isPresent;
+    }
+
+    /**
+     * @return the collection of points that do not currently contain chunks
+     */
+    public List<Point> getEmptyPoints() {
+        final int width = mWrappedBox.getWidth();
+        final int height = mWrappedBox.getHeight();
+        final Boolean[][] isPresent = toBooleanArray();
+        final List<Point> emptyPoints = new ArrayList<>();
+
+        for (int i = 0; i < height; ++i) {
+            for (int j = 0; j < width; ++j) {
+                if (!isPresent[i][j]) {
+                    emptyPoints.add(new Point(j, i));
+                }
+            }
+        }
+
+        return emptyPoints;
+    }
+
 
     /**
      * Determines if the two region's bounding boxes overlap.
@@ -149,8 +261,6 @@ public class Simulation {
                 final Point offset = region.getPosition().truncate();
                 final Point transformed = Util.subPoints(point, offset);
 
-                if (transformed.x < 0 && transformed.y < 0) continue;
-
                 if (mWrappedBox.getNonWrappedDuplicates(transformed).stream().anyMatch(
                     duplicate -> region.contains(duplicate))) {
 
@@ -160,6 +270,18 @@ public class Simulation {
         }
 
         return Optional.empty();
+    }
+
+    /**
+     * @param point the point to search around
+     * @return a list of regions neighboring this point
+     */
+    public List<Region> getNeighboringRegions(final Point point) {
+        return mWrappedBox.getNeighbors(point).stream()
+            .map(this::getRegionFromPoint)
+            .filter(opt -> opt.isPresent())
+            .map(Optional::get)
+            .collect(Collectors.toList());
     }
 
     /**
@@ -226,6 +348,21 @@ public class Simulation {
         }
 
         return classified;
+    }
+
+    private void reEvaluateHeightMaps(final float mantleDensity) {
+        float totalDisplacement = 0.0f;
+
+        for (final Region region : getRegions()) {
+            totalDisplacement += region.reEvaluateHeightMap(mantleDensity);
+        }
+
+        final float chunkWidth = Chunk.WIDTH_IN_KM.toKilometers();
+        final float liftHeight = totalDisplacement / (mWrappedBox.getArea() * chunkWidth * chunkWidth) * 1000f;
+
+        for (final Region region : getRegions()) {
+            region.lift(liftHeight);
+        }
     }
 
     /**
