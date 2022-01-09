@@ -52,12 +52,13 @@
 * `float getElevationAt(final int x, final int y)`
 * `float getElevationAt(final Point local)`
 * `Pair<Float, Float> getElevationRange()`
+* `List<Pair<Point, Chunk>> getChunkPairs()`
 * `List<Point> getPoints()`
 * `List<Point> getGlobalPoints()`
 * `List<Point> getBoundary()`
 * `List<Point> getGlobalBoundary()`
-* TODO: `List<Point> getNeighbors()`
-* TODO: `List<Point> getGlobalNeighbors()`
+* `List<Point> getNeighbors()`
+* `List<Point> getGlobalNeighbors()`
 * `BoundingBox getBoundingBox()`
 
 ### Modifiers
@@ -71,9 +72,8 @@
 * `void setPosition(final Vec position)`
 * `void setVelocity(final Vec velocity)`
 * `void lift(final float dz)`
-* REWRITE: `void resize(final int x0, final int y0, final int x1, final int y0)`
+* `void overwrite(final Region region)`
 * `float reEvaluateHeightMap(final float mantleDensity)`
-* `Point refit()`
 * `List<Region> partition()`
 * `List<Region> divide()`
 
@@ -87,7 +87,5 @@
 
 
 ## Ideas
-
-* Replace `resize()` and `refit()` calls with `buildRegion()`. This would need an additional method `void overwrite(final Region region)`. This would also need an additional method `List<Pair<Point, Chunk>> getChunkPairs()`.
 
 * Memoize calls to methods like `getCentroid()`. This would require a boolean `mStateChanged`. Maybe there should be multiple flags for different types of modification (e.g. `lift()` doesn't modify the output of `getCentroid()`)

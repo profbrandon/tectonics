@@ -41,7 +41,6 @@ public class RegionViewer extends JFrame {
 
         final Pair<Boolean[][], Point> pair = info.get();
         final Region region = new Region(pair.first, pair.second.x, pair.second.y, Vec.ZERO);
-        region.refit();
         final RegionPanel regionPanel = new RegionPanel(region);
 
         final JComboBox<RegionPanel.ViewingMode> comboBox = new JComboBox<>(RegionPanel.ViewingMode.values());
@@ -88,6 +87,7 @@ public class RegionViewer extends JFrame {
         final PointSelectionPanel pointSelection = new PointSelectionPanel(point -> {
             final boolean contained = region.containsGlobal(point);
             final boolean onBoundary = region.onBoundary(region.toLocal(point));
+            final boolean neighbors = region.neighbors(region.toLocal(point));
             final boolean withinBoundingBox = region.getBoundingBox().contains(point);
             final boolean nextToBoundingBox = region.getBoundingBox().nextTo(point);
 
@@ -96,6 +96,7 @@ public class RegionViewer extends JFrame {
             statusArea.setText(
                 "Contained: " + contained + ", " +
                 "On Boundary: " + onBoundary + ", " +
+                "Neighbors: " + neighbors + ", " + 
                 "Within Bounding Box: " + withinBoundingBox + ", " +
                 "Adjacent to Bounding Box: " + nextToBoundingBox
             );

@@ -353,6 +353,26 @@ public class Region {
     }
 
     /**
+     * @return a collection of all of the present points paired with their chunks
+     */
+    public List<Pair<Point, Chunk>> getChunkPairs() {
+        final List<Pair<Point, Chunk>> pairs = new ArrayList<>();
+
+        for (int i = 0; i < mHeight; ++i) {
+            for (int j = 0; j < mWidth; ++j) {
+                final Point point = new Point(j, i);
+                final Optional<Chunk> chunk = getChunkAt(point);
+
+                if (chunk.isPresent()) {
+                    pairs.add(new Pair<>(point, chunk.get()));
+                }
+            }
+        }
+
+        return pairs;
+    }
+
+    /**
      * Note: The points are in local coordinates
      * @return the points that make up this region
      */
@@ -403,6 +423,26 @@ public class Region {
     }
 
     /**
+     * Note: the points returned are in local coordinates
+     * @return the points that make up the neighboring area of the region
+     */
+    public List<Point> getNeighbors() {
+        return getBoundary()
+            .stream()
+            .flatMap(point -> Util.getNeighbors(point).stream())
+            .filter(point -> !contains(point))
+            .distinct()
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * @return the points that make up the neighboring area of the region
+     */
+    public List<Point> getGlobalNeighbors() {
+        return getNeighbors().stream().map(this::toGlobal).collect(Collectors.toList());
+    }
+
+    /**
      * @return The bounding box of this region in local coordinates
      */
     public BoundingBox getBoundingBox() {
@@ -410,8 +450,6 @@ public class Region {
     }
 
     /**
-     * TODO: Replace resize() calls with buildRegion()
-     * 
      * Sets the chunk at the specified local position
      * @param x the local x coordinate
      * @param y the local y coordinate
@@ -419,15 +457,15 @@ public class Region {
      */
     public void setChunk(final int x, final int y, final Chunk chunk) {
         if (x < 0 || y < 0 || x >= mWidth || y >= mHeight) {
-            resize(Math.min(x, 0), Math.min(y, 0), Math.max(x, mWidth - 1), Math.max(y, mHeight - 1));
+            final List<Pair<Point, Chunk>> chunkPairs = getChunkPairs();
+            chunkPairs.add(new Pair<>(new Point(x, y), chunk));
+            overwrite(Region.buildRegion(chunkPairs, getPosition()));
         }
-
-        final int x0 = Math.max(Math.min(x, mWidth - 1), 0);
-        final int y0 = Math.max(Math.min(y, mHeight - 1), 0);
-
-        final List<Optional<Chunk>> row = mChunks.get(y0);
-        row.remove(x0);
-        row.add(x0, Optional.of(chunk));
+        else {
+            final List<Optional<Chunk>> row = mChunks.get(y);
+            row.remove(x);
+            row.add(x, Optional.of(chunk));
+        }
     }
 
     /**
@@ -509,46 +547,17 @@ public class Region {
     }
 
     /**
-     * TODO: Eliminate this method
-     * 
-     * Resizes the region to the specified coordinates
-     * @param x0 the leftmost x coordinate
-     * @param y0 the uppermost y coordinate
-     * @param x1 the rightmost x coordinate
-     * @param y1 the bottommost y coordinate
+     * Replaces all of the internal information of this region with
+     * that of the given region.
+     * @param region the region to copy to this region
      */
-    private void resize(final int x0, final int y0, final int x1, final int y1) {
-        final int width  = x1 + 1 - x0;
-        final int height = y1 + 1 - y0;
-
-        assert width > 0;
-        assert height > 0;
-
-        final List<List<Optional<Chunk>>> chunks = new ArrayList<>(height);
-        final float[][] heightMap = new float[height][width];
-
-        for (int i = y0; i <= y1; ++i) {
-            List<Optional<Chunk>> row = new ArrayList<>(width);
-
-            for (int j = x0; j <= x1; ++j) {
-                row.add(getChunkAt(j, i));
-
-                if (i >= 0 && j >= 0 && i < mHeight && j < mWidth) {
-                    heightMap[i - y0][j - x0] = mHeightMap[i][j];
-                }
-                else {
-                    heightMap[i - y0][j - x0] = 0f;
-                }
-            }
-
-            chunks.add(row);
-        }
-
-        mChunks = chunks;
-        mHeightMap = heightMap;
-        mWidth = width;
-        mHeight = height;
-        mPosition = Vec.sum(mPosition, new Vec(x0, y0));
+    public void overwrite(final Region region) {
+        mWidth     = region.mWidth;
+        mHeight    = region.mHeight;
+        mPosition  = region.mPosition;
+        mVelocity  = region.mVelocity;
+        mChunks    = region.mChunks;
+        mHeightMap = region.mHeightMap;
     }
 
     /**
@@ -575,70 +584,6 @@ public class Region {
         final float s = Chunk.WIDTH_IN_KM.toKilometers();
 
         return Length.fromMeters(totalDepth).toKilometers() * s * s;
-    }
-
-    /**
-     * TODO: Eliminate this method
-     * 
-     * Refits the region to the minimum size
-     * @return the point that is the new top left corner of the array in old coordinates
-     */
-    public Point refit() {
-        if (isMinimumSize()) return new Point(0,0);
-
-        final Boolean[][] array = toBooleanArray();
-
-        int minX = 0;
-
-        for (int j = 0; j < mWidth; ++j, ++minX) {
-            boolean somethingInCol = false;
-
-            for (int i = 0; i < mHeight; ++i) {
-                somethingInCol |= array[i][j];
-            }
-
-            if (somethingInCol) break;
-        }
-
-        int minY = 0;
-
-        for (int i = 0; i < mHeight; ++i, ++minY) {
-            boolean somethingInRow = false;
-            
-            for (int j = 0; j < mWidth; ++j) {
-                somethingInRow |= array[i][j];
-            }
-
-            if (somethingInRow) break;
-        }
-
-        int maxX = mWidth - 1;
-
-        for (int j = maxX; j >= 0; --j, --maxX) {
-            boolean somethingInCol = false;
-
-            for (int i = 0; i < mWidth; ++i) {
-                somethingInCol |= array[i][j];
-            }
-
-            if (somethingInCol) break;
-        }
-
-        int maxY = mHeight - 1;
-
-        for (int i = maxY; i >= 0; --i, --maxY) {
-            boolean somethingInRow = false;
-
-            for (int j = 0; j < mWidth; ++j) {
-                somethingInRow |= array[i][j];
-            }
-
-            if (somethingInRow) break;
-        }
-
-        resize(minX, minY, maxX, maxY);
-
-        return new Point(minX, minY);
     }
 
     /**
