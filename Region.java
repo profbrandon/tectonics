@@ -28,12 +28,12 @@ public class Region {
     /**
      * The x dimension of the region.
      */
-    private int mDimX;
+    private int mWidth;
 
     /**
      * The y dimension of the region.
      */
-    private int mDimY;
+    private int mHeight;
 
     /**
      * The region's position.
@@ -65,18 +65,18 @@ public class Region {
         assert width >= 0;
         assert height >= 0;
 
-        mDimY = height;
-        mDimX = width;
+        mHeight = height;
+        mWidth = width;
         
         mPosition = position;
 
-        mChunks = new ArrayList<>(mDimY);
+        mChunks = new ArrayList<>(mHeight);
         mHeightMap = new float[height][width];
 
-        for (int i = 0; i < mDimY; ++i) {
-            List<Optional<Chunk>> row = new ArrayList<>(mDimX);
+        for (int i = 0; i < mHeight; ++i) {
+            List<Optional<Chunk>> row = new ArrayList<>(mWidth);
 
-            for (int j = 0; j < mDimX; ++j) {
+            for (int j = 0; j < mWidth; ++j) {
                 row.add(Optional.empty());
                 mHeightMap[i][j] = 0f;
             }
@@ -95,14 +95,13 @@ public class Region {
     public Region(final Boolean[][] isPresent, final int width, final int height, final Vec position) {
         this(width, height, position);
 
-        final Chunk.Layer layer = new Chunk.Layer(
-            Chunk.RockType.randomRockType(),
-            Length.fromKilometers(10f).toMeters());
-
         for (int i = 0; i < height; ++i) {
             for (int j = 0; j < width; ++j) {
                 if (isPresent[i][j]) {
                     final Chunk chunk = new Chunk();
+                    final Chunk.Layer layer = new Chunk.Layer(
+                        Chunk.RockType.randomRockType(),
+                        Length.fromKilometers(1f).toMeters());
                     chunk.deposit(layer);
                     setChunk(j, i, chunk);
                 }
@@ -114,7 +113,14 @@ public class Region {
      * @return whether this region contains more space than is necessary
      */
     public boolean isMinimumSize() {
-        return BoolArrayUtil.isMinimumSize(toBooleanArray(), mDimX, mDimY);
+        return BoolArrayUtil.isMinimumSize(toBooleanArray(), mWidth, mHeight);
+    }
+
+    /**
+     * @return whether the region contains its centroid
+     */
+    public boolean isRoughlyConvex() {
+        return contains(Vec.sum(getCentroid(), getPosition().negate()).truncate());
     }
 
     /**
@@ -128,10 +134,10 @@ public class Region {
 
         int minX = 0;
 
-        for (int j = 0; j < mDimX; ++j, ++minX) {
+        for (int j = 0; j < mWidth; ++j, ++minX) {
             boolean somethingInCol = false;
 
-            for (int i = 0; i < mDimY; ++i) {
+            for (int i = 0; i < mHeight; ++i) {
                 somethingInCol |= array[i][j];
             }
 
@@ -140,34 +146,34 @@ public class Region {
 
         int minY = 0;
 
-        for (int i = 0; i < mDimY; ++i, ++minY) {
+        for (int i = 0; i < mHeight; ++i, ++minY) {
             boolean somethingInRow = false;
             
-            for (int j = 0; j < mDimX; ++j) {
+            for (int j = 0; j < mWidth; ++j) {
                 somethingInRow |= array[i][j];
             }
 
             if (somethingInRow) break;
         }
 
-        int maxX = mDimX - 1;
+        int maxX = mWidth - 1;
 
         for (int j = maxX; j >= 0; --j, --maxX) {
             boolean somethingInCol = false;
 
-            for (int i = 0; i < mDimX; ++i) {
+            for (int i = 0; i < mWidth; ++i) {
                 somethingInCol |= array[i][j];
             }
 
             if (somethingInCol) break;
         }
 
-        int maxY = mDimY - 1;
+        int maxY = mHeight - 1;
 
         for (int i = maxY; i >= 0; --i, --maxY) {
             boolean somethingInRow = false;
 
-            for (int j = 0; j < mDimX; ++j) {
+            for (int j = 0; j < mWidth; ++j) {
                 somethingInRow |= array[i][j];
             }
 
@@ -184,7 +190,7 @@ public class Region {
      * @return a collection of regions paired with their old local coordinates
      */
     public List<Region> partition() {
-        final List<List<Point>> pointCollections = BoolArrayUtil.partition(toBooleanArray(), mDimX, mDimY);
+        final List<List<Point>> pointCollections = BoolArrayUtil.partition(toBooleanArray(), mWidth, mHeight);
         final List<Region> regions = new ArrayList<>(pointCollections.size());
 
         for (final List<Point> regionPoints : pointCollections) {
@@ -223,7 +229,7 @@ public class Region {
      */
     public List<Region> divide() {
         final List<Point> points = getPoints();
-        final int numberOfCentroids = (int) (DIVISION_RATIO * points.size());
+        final int numberOfCentroids = 1 + (int) (DIVISION_RATIO * Math.sqrt(points.size()));
 
         final List<Pair<Integer, Point>> centroids = new ArrayList<>();
         final List<List<Pair<Point, Chunk>>> groups = new ArrayList<>(numberOfCentroids);
@@ -251,7 +257,18 @@ public class Region {
             regions.add(Region.buildRegion(groups.get(i), mPosition));
         }
 
-        return regions;
+        final List<Region> allRegions = new ArrayList<>(numberOfCentroids);
+
+        for (final Region region : regions) {
+            if (region.isRoughlyConvex()) {
+                allRegions.add(region);
+            }
+            else {
+                allRegions.addAll(region.divide());
+            }
+        }
+
+        return allRegions;
     }
 
     /**
@@ -261,8 +278,8 @@ public class Region {
     public float reEvaluateHeightMap(final float mantleDensity) {
         float totalDepth = 0f;
 
-        for (int i = 0; i < mDimY; ++i) {
-            for (int j = 0; j < mDimX; ++j) {
+        for (int i = 0; i < mHeight; ++i) {
+            for (int j = 0; j < mWidth; ++j) {
                 final Optional<Chunk> temp = getChunkAt(j, i);
 
                 if (temp.isPresent()) {
@@ -285,9 +302,9 @@ public class Region {
      * @param dz the vertical displacement in meters
      */
     public void lift(final float dz) {
-        for (int i = 0; i < mDimY; ++i) {
-            for (int j = 0; j < mDimX; ++j) {
-                if (getChunkAt(j, i).isPresent()) {
+        for (int i = 0; i < mHeight; ++i) {
+            for (int j = 0; j < mWidth; ++j) {
+                if (contains(j, i)) {
                     mHeightMap[i][j] -= dz;
                 }
             }
@@ -295,23 +312,31 @@ public class Region {
     }
 
     /**
-     * Sets the chunk at the specified position
+     * Sets the chunk at the specified local position
      * @param x the local x coordinate
      * @param y the local y coordinate
      * @param chunk the chunk to place at (x,y)
      */
     public void setChunk(final int x, final int y, final Chunk chunk) {
-        if (x < 0 || y < 0 || x >= mDimX || y >= mDimY) {
-            // System.out.println("Resizing Region!");
-            resize(Math.min(x, 0), Math.min(y, 0), Math.max(x, mDimX - 1), Math.max(y, mDimY - 1));
+        if (x < 0 || y < 0 || x >= mWidth || y >= mHeight) {
+            resize(Math.min(x, 0), Math.min(y, 0), Math.max(x, mWidth - 1), Math.max(y, mHeight - 1));
         }
 
-        final int x0 = Math.max(Math.min(x, mDimX - 1), 0);
-        final int y0 = Math.max(Math.min(y, mDimY - 1), 0);
+        final int x0 = Math.max(Math.min(x, mWidth - 1), 0);
+        final int y0 = Math.max(Math.min(y, mHeight - 1), 0);
 
         final List<Optional<Chunk>> row = mChunks.get(y0);
         row.remove(x0);
         row.add(x0, Optional.of(chunk));
+    }
+
+    /**
+     * Sets the chunk at the specified local position
+     * @param local a point in local coordinates
+     * @param chunk the chunk to place at the point
+     */
+    public void setChunk(final Point local, final Chunk chunk) {
+        setChunk(local.x, local.y, chunk);
     }
 
     /**
@@ -320,11 +345,19 @@ public class Region {
      * @param y the local y coordinate
      */
     public void removeChunk(final int x, final int y) {
-        if (x < 0 || y < 0 || x >= mDimX || y >= mDimY) return;
+        if (x < 0 || y < 0 || x >= mWidth || y >= mHeight) return;
 
         final List<Optional<Chunk>> row = mChunks.get(y);
         row.remove(x);
         row.add(x, Optional.empty());
+    }
+
+    /**
+     * Removes the chunk at the specified position
+     * @param local a point in local coordinates
+     */
+    public void removeChunk(final Point local) {
+        removeChunk(local.x, local.y);
     }
 
     /**
@@ -334,8 +367,17 @@ public class Region {
      * @param height the height below the mantle
      */
     private void setHeightAt(final int x, final int y, final float height) {
-        if (x < 0 || y < 0 || x >= mDimX || y >= mDimY) return;
+        if (x < 0 || y < 0 || x >= mWidth || y >= mHeight) return;
         else mHeightMap[y][x] = height;
+    }
+
+    /**
+     * Sets the height of the chunk below the mantle
+     * @param local a point in local coordiantes
+     * @param height the height below the mantle
+     */
+    private void setHeightAt(final Point local, final float height) {
+        setHeightAt(local.x, local.y, height);
     }
 
     /**
@@ -353,11 +395,86 @@ public class Region {
     }
 
     /**
-     * @param point the point in local coordinates
+     * @param x the local x coordinate
+     * @param y the local y coordinate
+     * @return whether the region contains a chunk at (x, y)
+     */
+    public boolean contains(final int x, final int y) {
+        return getChunkAt(x, y).isPresent();
+    }
+
+    /**
+     * @param local the point in local coordinates
      * @return whether the region contains the point
      */
-    public boolean contains(final Point point) {
-        return getChunkAt(point.x, point.y).isPresent();
+    public boolean contains(final Point local) {
+        return getChunkAt(local.x, local.y).isPresent();
+    }
+
+    /**
+     * @param x the global x coordinate
+     * @param y the global y coordinate
+     * @return whether the region contains the point
+     */
+    public boolean containsGlobal(final int x, final int y) {
+        return containsGlobal(new Point(x, y));
+    }
+
+    /**
+     * @param global the point in global coordinates
+     * @return whether the region contains the point
+     */
+    public boolean containsGlobal(final Point global) {
+        return contains(toLocal(global));
+    }
+
+    /**
+     * @param local a point in local coordinates
+     * @return whether the point neighbors the region (but is not contained in it)
+     */
+    public boolean neighbors(final Point local) {
+        return !contains(local) && Util.getNeighbors(local).stream().anyMatch(this::onBoundary);
+    }
+
+    /**
+     * @param global a point in global coordinates
+     * @return whether the point neighbors the region (but is not contained in it)
+     */
+    public boolean neighborsGlobal(final Point global) {
+        return neighbors(toLocal(global));
+    }
+
+    /**
+     * @param x the local x coordinate
+     * @param y the local y coordinate
+     * @return whether the point (x, y) is on the boundary of this region
+     */
+    public boolean onBoundary(final int x, final int y) {
+        return onBoundary(new Point(x, y));
+    }
+
+    /**
+     * @param point the point in local coordinates
+     * @return whether the point is on the boundary of this region
+     */
+    public boolean onBoundary(final Point local) {
+        return contains(local) && Util.getNeighbors(local).stream().anyMatch(neighbor -> !contains(neighbor));
+    }
+
+    /**
+     * @param global a point in global coordinates
+     * @return the same point in local coordinates
+     */
+    public Point toLocal(final Point global) {
+        return Vec.sum(Vec.extend(global), mPosition.negate()).truncate();
+    }
+
+    /**
+     * @param local a point in local coordinates
+     * @return the same point in global coordinates
+     */
+    public Point toGlobal(final Point local) {
+        return Vec.sum(Vec.extend(local), mPosition).truncate();
     }
 
     /**
@@ -366,8 +483,16 @@ public class Region {
      * @return the potential chunk at that coordinate
      */
     public Optional<Chunk> getChunkAt(final int x, final int y) {
-        if (x < 0 || y < 0 || x >= mDimX || y >= mDimY) return Optional.empty();
+        if (x < 0 || y < 0 || x >= mWidth || y >= mHeight) return Optional.empty();
         else return mChunks.get(y).get(x);
+    }
+
+    /**
+     * @param local a point in local coordinates
+     * @return the potential chunk at that local point
+     */
+    public Optional<Chunk> getChunkAt(final Point local) {
+        return getChunkAt(local.x, local.y);
     }
 
     /**
@@ -376,8 +501,16 @@ public class Region {
      * @return the height below the mantle in meters
      */
     public float getHeightAt(final int x, final int y) {
-        if (x < 0 || y < 0 || x >= mDimX || y >= mDimY) return 0f;
+        if (x < 0 || y < 0 || x >= mWidth || y >= mHeight) return 0f;
         else return mHeightMap[y][x];
+    }
+
+    /**
+     * @param local a point in local coordinates
+     * @return the height below the mantle in meters
+     */
+    public float getHeightAt(final Point local) {
+        return getHeightAt(local.x, local.y);
     }
 
     /**
@@ -386,7 +519,7 @@ public class Region {
      * @return the elevation in meters
      */
     public float getElevationAt(final int x, final int y) {
-        if (x < 0 || y < 0 || x >= mDimX || y >= mDimY) return 0f;
+        if (x < 0 || y < 0 || x >= mWidth || y >= mHeight) return 0f;
 
         final Optional<Chunk> chunk = getChunkAt(x, y);
 
@@ -395,6 +528,14 @@ public class Region {
         }
         
         return 0f;
+    }
+
+    /**
+     * @param local a point in local coordinates
+     * @return the elevation in meters
+     */
+    public float getElevationAt(final Point local) {
+        return getElevationAt(local.x, local.y);
     }
 
     /**
@@ -418,15 +559,15 @@ public class Region {
     /**
      * @return the local x dimension (width)
      */
-    public int getDimX() {
-        return mDimX;
+    public int getWidth() {
+        return mWidth;
     }
 
     /**
      * @return the local y dimension (height)
      */
-    public int getDimY() {
-        return mDimY;
+    public int getHeight() {
+        return mHeight;
     }
 
     /**
@@ -451,8 +592,8 @@ public class Region {
         final List<Point> points = new ArrayList<>();
         final Boolean[][] isPresent = toBooleanArray();
 
-        for (int i = 0; i < mDimY; ++i) {
-            for (int j = 0; j < mDimX; ++j) {
+        for (int i = 0; i < mHeight; ++i) {
+            for (int j = 0; j < mWidth; ++j) {
                 if (isPresent[i][j]) {
                     points.add(new Point(j, i));
                 }
@@ -463,24 +604,35 @@ public class Region {
     }
 
     /**
+     * @return the points that make up this region (in global coordinates)
+     */
+    public List<Point> getGlobalPoints() {
+        return getPoints().stream().map(this::toGlobal).collect(Collectors.toList());
+    }
+
+    /**
      * Note: The points are in local coordinates
      * @return the points that make up the boundary of the region
      */
     public List<Point> getBoundary() {
         return getPoints()
             .stream()
-            .filter(point -> {
-                return Util.getNeighbors(point)
-                    .stream().anyMatch(neighbor -> getChunkAt(neighbor.x, neighbor.y).isEmpty());
-            })
+            .filter(this::onBoundary)
             .collect(Collectors.toList());
+    }
+
+    /**
+     * @return the points that make up the boundary (in local coordinates)
+     */
+    public List<Point> getGlobalBoundary() {
+        return getBoundary().stream().map(this::toGlobal).collect(Collectors.toList());
     }
 
     /**
      * @return The bounding box of this region in local coordinates
      */
     public BoundingBox getBoundingBox() {
-        return new BoundingBox(mPosition.truncate(), new Point(mDimX, mDimY));
+        return new BoundingBox(mPosition.truncate(), new Point(mWidth, mHeight));
     }
 
     /**
@@ -504,11 +656,11 @@ public class Region {
      *         operations do not need to work with the actual chunk data.
      */
     public Boolean[][] toBooleanArray() {
-        Boolean[][] rvalue = new Boolean[mDimY][mDimX];
+        Boolean[][] rvalue = new Boolean[mHeight][mWidth];
 
-        for (int i = 0; i < mDimY; ++i) {
-            for (int j = 0; j < mDimX; ++j) {
-                rvalue[i][j] = getChunkAt(j, i).isPresent();
+        for (int i = 0; i < mHeight; ++i) {
+            for (int j = 0; j < mWidth; ++j) {
+                rvalue[i][j] = contains(j, i);
             }
         }
 
@@ -538,7 +690,7 @@ public class Region {
             for (int j = x0; j <= x1; ++j) {
                 row.add(getChunkAt(j, i));
 
-                if (i >= 0 && j >= 0 && i < mDimY && j < mDimX) {
+                if (i >= 0 && j >= 0 && i < mHeight && j < mWidth) {
                     heightMap[i - y0][j - x0] = mHeightMap[i][j];
                 }
                 else {
@@ -551,52 +703,9 @@ public class Region {
 
         mChunks = chunks;
         mHeightMap = heightMap;
-        mDimX = width;
-        mDimY = height;
+        mWidth = width;
+        mHeight = height;
         mPosition = Vec.sum(mPosition, new Vec(x0, y0));
-    }
-
-    /**
-     * TODO: test this method
-     */
-    public static Pair<Point, Region> absorb(final Region r0, final Region r1) {
-        final Point relative = Vec.sum(r0.getPosition(), r1.getPosition().negate()).truncate();
-
-        final int minX = Math.min(0, relative.x);
-        final int minY = Math.min(0, relative.y);
-        final int maxX = Math.max(r0.getDimX() - 1, r1.getDimX() - 1 + relative.x);
-        final int maxY = Math.max(r0.getDimY() - 1, r1.getDimY() - 1 + relative.y);
-
-        final int newWidth  = maxX - minX + 1;
-        final int newHeight = maxY - minY + 1;
-
-        final Boolean[][] isPresent = new Boolean[newHeight][newWidth];
-        final Boolean[][] bs0 = r0.toBooleanArray();
-        final Boolean[][] bs1 = r1.toBooleanArray();
-        
-        for (int i = 0; i < newHeight; ++i) {
-            for (int j = 0; j < newWidth; ++j) {
-                isPresent[i][j] = false;
-            }
-        }
-
-        for (int i = 0; i < r0.getDimY(); ++i) {
-            for (int j = 0; j < r0.getDimX(); ++j) {
-                isPresent[i - minY][j - minX] |= bs0[i][j];
-            }
-        }
-
-        final int relX = Math.max(0, relative.x);
-        final int relY = Math.max(0, relative.y);
-
-        for (int i = 0; i < r1.getDimY(); ++i) {
-            for (int j = 0; j < r1.getDimX(); ++j) {
-                isPresent[i + relY][j + relX] |= bs1[i][j];
-            }
-        }
-
-        // TODO: Fix the position
-        return new Pair<>(new Point(minX, minY), new Region(isPresent, newWidth, newHeight, Vec.ZERO));
     }
 
     /**
@@ -627,80 +736,6 @@ public class Region {
         }
 
         return region;
-    }
-
-    /**
-     * Renders a region into a collection of pixels
-     * @param region the region to render
-     * @param sideChunksPerPixel the amount of chunks per one side of the pixel
-     * @param pixelType the type of the pixel
-     * @return a pair consisting of the size of the array and the color array
-     */
-    public static Pair<Point, Color[][]> renderRegion(final Region region, final int sideChunksPerPixel, final String pixelType) {
-        assert sideChunksPerPixel > 0;
-
-        final int width  = region.getDimX();
-        final int height = region.getDimY();
-
-        final int pWidth  = width / sideChunksPerPixel;
-        final int pHeight = height / sideChunksPerPixel;
-
-        final int square = sideChunksPerPixel * sideChunksPerPixel;
-
-        final Pair<Float, Float> elevationRange = region.getElevationRange();
-
-        final Color[][] pixels = new Color[pHeight][pWidth];
-        
-        for (int i = 0; i < pHeight; ++i) {
-            for (int j = 0; j < pWidth; ++j) {
-                int totalR = 0;
-                int totalG = 0;
-                int totalB = 0;
-
-                for (int ii = 0; ii < sideChunksPerPixel; ++ii) {
-                    for (int jj = 0; jj < sideChunksPerPixel; ++jj) {
-                        final int x = sideChunksPerPixel * j + jj;
-                        final int y = sideChunksPerPixel * i + ii;
-
-                        final Optional<Chunk> chunk = region.getChunkAt(x, y);
-
-                        if (chunk.isPresent()) {
-                            if (pixelType.equals("single color")) {
-                                totalR += 255;
-                                totalG += 255;
-                                totalB += 255;
-                            }
-                            else if (pixelType.equals("height")) {
-                                final float fraction = 1f - 0.9f * (region.getElevationAt(x, y) - elevationRange.second)
-                                    / (elevationRange.first - elevationRange.second);
-
-                                final Color color = Color.getHSBColor(fraction, 1.0f, 1.0f);
-                                
-                                totalR += color.getRed();
-                                totalG += color.getGreen();
-                                totalB += color.getBlue();
-                            }
-                            else if (pixelType.equals("boundaries")) {
-                                if (region.getBoundary().contains(new Point(x, y))) {
-                                    totalR += 255;
-                                }
-                            }
-                            else {
-                                final Color color = chunk.get().getTopRockType().mColor;
-
-                                totalR += color.getRed();
-                                totalG += color.getGreen();
-                                totalB += color.getBlue();
-                            }
-                        }
-                    }
-                }
-
-                pixels[i][j] = new Color(totalR / square, totalG / square, totalB / square);
-            }
-        }
-
-        return new Pair<>(new Point(pWidth, pHeight), pixels);
     }
 
     /**
@@ -739,8 +774,8 @@ public class Region {
      * @return whether the write was successful
      */
     public static boolean exportRegionShapeToPNG(final String filePath, final Region region) {
-        final int width  = region.getDimX();
-        final int height = region.getDimY();
+        final int width  = region.getWidth();
+        final int height = region.getHeight();
         
         final BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         final Graphics      g     = image.getGraphics();
