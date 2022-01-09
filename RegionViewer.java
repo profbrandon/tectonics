@@ -29,9 +29,9 @@ public class RegionViewer extends JFrame {
 
         System.out.print("Loading Region... ");
 
-        final Optional<Pair<Boolean[][], Point>> info = Region.importRegionShapeFromPNG("region0.png");
+        final Optional<Region> optional = Region.importRegionShapeFromPNG("region0.png");
 
-        if (info.isEmpty()) {
+        if (optional.isEmpty()) {
             System.out.println("Failed");
             dispose();
             return;
@@ -39,8 +39,7 @@ public class RegionViewer extends JFrame {
 
         System.out.println("Success");
 
-        final Pair<Boolean[][], Point> pair = info.get();
-        final Region region = new Region(pair.first, pair.second.x, pair.second.y, Vec.ZERO);
+        final Region region = optional.get();
         final RegionPanel regionPanel = new RegionPanel(region);
 
         final JComboBox<RegionPanel.ViewingMode> comboBox = new JComboBox<>(RegionPanel.ViewingMode.values());
@@ -216,6 +215,17 @@ public class RegionViewer extends JFrame {
                 }
 
                 g.drawLine(x, y, x, y);
+            }
+
+            if (mViewingMode == ViewingMode.BOUNDARY) {
+                g.setColor(new Color(255, 100, 0));
+                
+                for (final Point neighbor : mRegion.getNeighbors()) {
+                    final int x = neighbor.x + 10;
+                    final int y = neighbor.y + 10;
+
+                    g.drawLine(x, y, x, y);
+                }
             }
 
             if (mShowBoundingBox) {

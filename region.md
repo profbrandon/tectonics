@@ -72,10 +72,12 @@
 * `void setPosition(final Vec position)`
 * `void setVelocity(final Vec velocity)`
 * `void lift(final float dz)`
-* `void overwrite(final Region region)`
+* `void overwrite(final Region region)` - Should only be applied to regions with no reference
 * `float reEvaluateHeightMap(final float mantleDensity)`
 * `List<Region> partition()`
 * `List<Region> divide()`
+<br>
+Note: Although `partition` and `divide` don't directly modify a region, the child regions they create will have the ability to modify the parent indirectly through the chunks.
 
 
 ## Static Methods
@@ -88,4 +90,25 @@
 
 ## Ideas
 
-* Memoize calls to methods like `getCentroid()`. This would require a boolean `mStateChanged`. Maybe there should be multiple flags for different types of modification (e.g. `lift()` doesn't modify the output of `getCentroid()`)
+* Memoize calls to methods like `getCentroid()`. The architecture of this would require several new methods. For example, for calls that change which chunks are present, we can call `invalidateChunks()` and for calls that change the heighmap, we can call `invalidateHeightMap()`. The methods of return type `T` can then be memoized with private `Optional<T>` values.
+    + The methods that can be memoized like this are:
+        - `getCentroid`
+        - `toBooleanArray`
+        - `getElevationRange`
+        - `getChunkPairs`
+        - `getPoints`
+        - `getGlobalPoints`
+        - `getBoundary`
+        - `getGlobalBoundary`
+        - `getNeighbors`
+        - `getGlobalNeighbors`
+        - `getBoundingBox`
+    <br>
+    + And methods that cause invalidation are:
+        - `setChunk`
+        - `removeChunk`
+        - `setDepthAt`
+        - `overwrite`
+        - `reEvalutateHeightMap`
+
+    Note that the method `lift` invalidates `getElevationRange`, however, since it uniformly lifts the terrain, we can just recompute the elevation simply by adding the lift value to the previously computed elevation extrema.

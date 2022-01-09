@@ -708,24 +708,29 @@ public class Region {
      * @param filename the file to read from
      * @return the matrix and its dimensions
      */
-    public static Optional<Pair<Boolean[][], Point>> importRegionShapeFromPNG(final String filename) {
+    public static Optional<Region> importRegionShapeFromPNG(final String filename) {
         try {
             final BufferedImage image = ImageIO.read(new File(filename));
 
             final int width  = image.getWidth();
             final int height = image.getHeight();
 
-            final Boolean[][] shape = new Boolean[width][height];
+            final List<Pair<Point, Chunk>> chunkPairs = new ArrayList<>();
 
             for (int i = 0; i < height; ++i) {
                 for (int j = 0; j < width; ++j) {
                     final int rgb = image.getRGB(j, i);
                     final int total = rgb & 0xFF + (rgb >> 8) & 0xFF + (rgb >> 16) & 0xFF;
-                    shape[i][j] = Math.round(((float) total) / 3f) == 0 ? false : true;
+
+                    if (Math.round(((float) total) / 3f) != 0) {
+                        final Chunk chunk = new Chunk();
+                        chunk.deposit(new Chunk.Layer(Chunk.RockType.randomRockType(), 1));
+                        chunkPairs.add(new Pair<>(new Point(j, i), chunk));
+                    }
                 }
             }
 
-            return Optional.of(new Pair<>(shape, new Point(width, height)));
+            return Optional.of(buildRegion(chunkPairs, Vec.ZERO));
 
         } catch(final Exception exception) {
             return Optional.empty();
