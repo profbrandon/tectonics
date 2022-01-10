@@ -14,6 +14,19 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 
 
+/**
+ * This class represents what is meant to be a small area of the simulation that
+ * locally corresponds to similar movement behavior. The idea is that while plates
+ * act (to some extent) as a single entity, it is the local behavior of "regions"
+ * that dictate the behavior of the plate. There are several examples that inspire
+ * a distinction between plates and regions:
+ * 
+ * - Plates can develop internal rift zones
+ * - Islands on oceanic plates are accreted at subduction zones
+ * - The same plate can be measured to move at different speeds in different places
+ * - Folding requires that the rest of the plate helps compress the region directly
+ *   adjacent to a collision zone
+ */
 public class Region {
 
     public static enum BoundaryType {
