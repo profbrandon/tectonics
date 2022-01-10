@@ -1,7 +1,23 @@
+
+/**
+ * Utility class to represent a pair of objects, potentially of different types.
+ */
 public class Pair<T, U> {
+
+    /**
+     * The first object
+     */
     public final T first;
+
+    /**
+     * The second object
+     */
     public final U second;
 
+    /**
+     * @param first the first object
+     * @param second the second object
+     */
     public Pair(final T first, final U second) {
         this.first = first;
         this.second = second;
