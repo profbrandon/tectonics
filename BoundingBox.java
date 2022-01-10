@@ -5,24 +5,67 @@ import java.util.List;
 
 
 public class BoundingBox {
+
+    /**
+     * The location of the upper-left corner of the box
+     */
     public final Point mLocation;
-    public final Point mDimensions;    
 
+    /**
+     * The dimensions of the box
+     */
+    public final Point mDimensions;
+
+    /**
+     * @param location the location of the upper-left corner of the box
+     * @param dimensions the dimensions of the box
+     */
     public BoundingBox(final Point location, final Point dimensions) {
-        this.mLocation = location;
-        this.mDimensions = dimensions;
+        assert dimensions.x > 0;
+        assert dimensions.y > 0;
+
+        mLocation = location;
+        mDimensions = dimensions;
     }
 
+    /**
+     * @param locX the left most x coordinate of the box
+     * @param locY the upper most y coordinate of the box
+     * @param width the width of the box
+     * @param height the height of the box
+     */
     public BoundingBox(final int locX, final int locY, final int width, final int height) {
-        this.mLocation = new Point(locX, locY);
-        this.mDimensions = new Point(width, height);
+        this(new Point(locX, locY), new Point(width, height));
     }
 
-    public boolean contains(final Point p) {
-        return Util.onInterval(mLocation.x, mLocation.x + mDimensions.x - 1, p.x)
-            && Util.onInterval(mLocation.y, mLocation.y + mDimensions.y - 1, p.y);
+    /**
+     * Constructs a bounding box at (0, 0).
+     * @param dimensions the dimensions of the box
+     */
+    public BoundingBox(final Point dimensions) {
+        this(new Point(), dimensions);
     }
 
+    /**
+     * @param point the point to check
+     * @return whether the point is contained within the bounding box
+     */
+    public boolean contains(final Point point) {
+        return Util.onInterval(mLocation.x, mLocation.x + mDimensions.x - 1, point.x)
+            && Util.onInterval(mLocation.y, mLocation.y + mDimensions.y - 1, point.y);
+    }
+
+    /**
+     * @param point the point to check
+     * @return whether the point is next to (but not contained in) the bounding box
+     */
+    public boolean nextTo(final Point point) {
+        return expandByOne().contains(point) && !contains(point) && !corners().contains(point);
+    }
+
+    /**
+     * @return the corners
+     */
     public List<Point> corners() {
         final List<Point> cs = new ArrayList<>();
         cs.add(mLocation);
@@ -32,13 +75,14 @@ public class BoundingBox {
         return cs;
     }
 
-    public static boolean overlaps(final BoundingBox b0, final BoundingBox b1) {
-        for (final Point corner : b0.corners()) {
-            if (b1.contains(corner)) {
-                return true;
-            }
-        }
-        return false;
+    /**
+     * @return The bounding box where all sides are expanded by 1 outwards.
+     */
+    public BoundingBox expandByOne() {
+        return new BoundingBox(
+            Util.sumPoints(mLocation, new Point(-1, -1)),
+            Util.sumPoints(mDimensions, new Point(2, 2))
+        );
     }
 
     @Override
