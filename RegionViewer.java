@@ -230,7 +230,12 @@ public class RegionViewer extends JFrame {
 
             if (mShowBoundingBox) {
                 g.setColor(boundingBoxColor);
-                g.drawRect(10, 10, mRegion.getWidth() - 1, mRegion.getHeight() - 1);
+                final BoundingBox box = mRegion.getBoundingBox();
+                g.drawRect(box.mLocation.x, box.mLocation.y, box.mDimensions.x - 1, box.mDimensions.y - 1);
+
+                g.setColor(boundingBoxColor.darker().darker());
+                final BoundingBox outer = box.expandByOne();
+                g.drawRect(outer.mLocation.x, outer.mLocation.y, outer.mDimensions.x - 1, outer.mDimensions.y - 1);
             }
 
             if (mShowCentroid) {
