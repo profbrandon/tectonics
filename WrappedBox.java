@@ -2,6 +2,7 @@
 import java.awt.Point;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 public class WrappedBox {
@@ -293,9 +294,19 @@ public class WrappedBox {
             || box2.corners().stream().anyMatch(p -> withinBoundingBox(box1, wrap(p)));
     }
 
-    // TODO: Write function
-    public boolean boundingBoxesTouch(final BoundingBox box1, final BoundingBox box2) {
-        return false;
+    /**
+     * @param box the unwrapped bounding box
+     * @param point the point to check
+     * @return an optional of an unwrapped point that is in the box
+     */
+    public Optional<Point> getUnwrapped(final BoundingBox box, final Point point) {
+        for (final Point duplicate : getNonWrappedDuplicates(point)) {
+            if (box.contains(duplicate)) {
+                return Optional.of(duplicate);
+            }
+        }
+
+        return Optional.empty();
     }
 
     /**
@@ -329,20 +340,14 @@ public class WrappedBox {
 
     /**
      * Determines if the collection contains the point.
-     * @param collection the collection to search
-     * @param point the point to find
+     * @param points the collection of points to search
+     * @param target the point to find
      * @return whether the point was found in the collection
-     * 
-     * Note: The collection must contain one of the nine non-wrapped duplicates in
-     *       order for this method to return true.
      */
-    public <T> boolean contains(final Collection<T> collection, final Point point) {
-        for (final Point duplicate : getNonWrappedDuplicates(point)) {
-            if (collection.contains(duplicate)) {
-                return true;
-            }
+    public boolean contains(final Collection<Point> points, final Point target) {
+        for (final Point point : points) {
+            if (pointEquals(point, target)) return true;
         }
-        
         return false;
     }
 }
