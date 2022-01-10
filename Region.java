@@ -36,7 +36,7 @@ public class Region {
         STATIONARY
     }
 
-    private static final float DIVISION_RATIO = 0.003f;
+    private static final float DIVISION_RATIO = 0.5f;
 
     /**
      * The x dimension of the region.
@@ -670,20 +670,7 @@ public class Region {
             regions.add(Region.buildRegion(groups.get(i), mPosition));
         }
 
-        // Split up non-convex regions
-        final List<Region> allRegions = new ArrayList<>(numberOfCentroids);
-
-        for (final Region region : regions) {
-            // TODO: Maybe switch this to partitioning non-contiguous regions
-            if (region.isRoughlyConvex()) {
-                allRegions.add(region);
-            }
-            else {
-                allRegions.addAll(region.divide());
-            }
-        }
-
-        return allRegions;
+        return regions;
     }
 
     /**

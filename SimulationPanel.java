@@ -90,8 +90,8 @@ public class SimulationPanel extends JPanel {
         int counter = 0;
 
         for (final Region region : regions) {
-            for (int i = 0; i < region.getDimY(); ++i) {
-                for (int j = 0; j < region.getDimX(); ++j) {
+            for (int i = 0; i < region.getHeight(); ++i) {
+                for (int j = 0; j < region.getWidth(); ++j) {
                     final Point location = Vec.sum(region.getPosition(), Vec.extend(new Point(j, i))).truncate();
                     final Optional<Chunk> chunk = region.getChunkAt(j, i);
 

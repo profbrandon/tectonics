@@ -3,19 +3,17 @@
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.awt.Point;
 
 
 public class Simulation {
     public static final Length RUPTURE_THICKNESS = Length.fromKilometers(1.0f);
-    public static final float BOUNDARY_THRESHOLD = 0.0001f;
+    public static final float BOUNDARY_THRESHOLD = 0.001f;
     public static final float SPRING_CONSTANT = 0.01f;
     public static final float DELTA_T = 0.01f;
 
@@ -84,59 +82,8 @@ public class Simulation {
             region.setVelocity(Vec.sum(region.getVelocity(), Vec.scale(acceleration, DELTA_T)));
         }
 
-        // Handle Rift Zones
-        for (final Point empty : getEmptyPoints()) {
-            
-            Util.choose(List.of(
-                new Pair<>(1.0f, (Util.Procedure) () -> {
-                    final List<Region> regions = getNeighboringRegions(empty);
-                    final Region selected = regions.get((int) (Math.random() * regions.size()));
-                    final Point offset = selected.getPosition().negate().truncate();
-                    final Chunk chunk = new Chunk();
-                    chunk.deposit(new Chunk.Layer(
-                        Chunk.RockType.BASALT,
-                        Length.fromKilometers((float) (4.0f + 0.5 * Math.random())).toMeters()));
-                    
-                    // TODO: Resize region when a chunk is added.
-                    //final Point target = mWrappedBox.getNonWrappedDuplicates(empty).stream().filter(point -> 
-                    //    selected.contains(Util.sumPoints(point, offset))).findFirst().get();
-                        
-                    //System.out.println("Here");
-                    final Point local = Util.sumPoints(empty, offset);
-                    
-                    selected.setChunk(local.x, local.y, chunk);
-                })));
-        }
-    
-        // Handle Collision Zones
-        final int width = mWrappedBox.getWidth();
-        final int height = mWrappedBox.getHeight();
-
-        for (int i = 0; i < height; ++i) {
-            for (int j = 0; j < width; ++j) {
-                final Set<Region> overlappingRegions = new HashSet<>(4);
-
-                for (final Region region : getRegions()) {
-                    if (contains(region, new Point(j, i))) {
-                        overlappingRegions.add(region);
-                    }
-                }
-
-                final Region chosen = overlappingRegions.stream()
-                    .collect(Collectors.toList()).get((int) (overlappingRegions.size() * Math.random()));
-
-                for (final Region region : overlappingRegions) {
-                    if (region != chosen) {
-                        final Point offset = region.getPosition().negate().truncate();
-                        final Point local = Util.sumPoints(new Point(j, i), offset);
-                        region.removeChunk(local.x, local.y);
-                    }
-                }
-            }
-        }
-
         // Recompute Height Maps
-        reEvaluateHeightMaps(3500f);
+        //reEvaluateHeightMaps(3500f);
     }
 
     public WrappedBox getWrappedBox() {
@@ -180,8 +127,8 @@ public class Simulation {
         }
 
         for (final Region region : getRegions()) {
-            final int rWidth = region.getDimX();
-            final int rHeight = region.getDimY();
+            final int rWidth = region.getWidth();
+            final int rHeight = region.getHeight();
             final Point offset = region.getPosition().truncate();
             final Boolean[][] regionPresent = region.toBooleanArray();
 

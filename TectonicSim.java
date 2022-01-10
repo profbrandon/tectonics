@@ -9,6 +9,7 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
+import javax.swing.WindowConstants;
 
 import java.awt.event.ActionEvent;
 import java.awt.BorderLayout;
@@ -26,9 +27,10 @@ public class TectonicSim extends JFrame {
 
     public TectonicSim() {
         super("Tectonic Simulator");
+        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
-        final int width  = 200;
-        final int height = 200;
+        final int width  = 300;
+        final int height = 300;
 
 
         // Components
