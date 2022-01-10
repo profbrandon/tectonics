@@ -1,29 +1,36 @@
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.function.Function;
 import java.awt.Point;
 import java.awt.Color;
 
 
 public class Util {
-
-    public static interface Procedure {
-        public void execute();
-    }
     
-    public static boolean areNeighbors(final Point p0, final Point p1) {
-        final int dx = Math.abs(p1.x - p0.x);
-        final int dy = Math.abs(p1.y - p0.y);
+    /**
+     * @param point1 the first point
+     * @param point2 the second point
+     * @return whether the two points are neighbors in normal euclidean space
+     */
+    public static boolean areNeighbors(final Point point1, final Point point2) {
+        final int dx = Math.abs(point2.x - point1.x);
+        final int dy = Math.abs(point2.y - point1.y);
 
         return dx + dy == 1;
     }
 
-    public static List<Point> getNeighbors(final Point p) {
+    /**
+     * @param point the point
+     * @return the neighbors of the point
+     */
+    public static List<Point> getNeighbors(final Point point) {
         final List<Point> neighbors = new ArrayList<>();
-        neighbors.add(new Point(p.x + 1, p.y));
-        neighbors.add(new Point(p.x - 1, p.y));
-        neighbors.add(new Point(p.x, p.y + 1));
-        neighbors.add(new Point(p.x, p.y - 1));
+        neighbors.add(new Point(point.x + 1, point.y));
+        neighbors.add(new Point(point.x - 1, point.y));
+        neighbors.add(new Point(point.x, point.y + 1));
+        neighbors.add(new Point(point.x, point.y - 1));
         return neighbors;
     }
 
@@ -65,6 +72,13 @@ public class Util {
         return (float) Math.sqrt(dx * dx + dy * dy);
     }
 
+    /**
+     * Determines if the point x is on the interval [a,b] or [b,a].
+     * @param a the first interval point
+     * @param b the second interval point
+     * @param x the point to classify
+     * @return whether the point x is on the interval
+     */
     public static boolean onInterval(final float a, final float b, final float x) {
         return (a <= x && x <= b) || (b <= x && x <= a);
     }
@@ -223,32 +237,26 @@ public class Util {
     }
 
     /**
-     * Accepts an object and a list of pairs consisting of a probability [0,1] and an action.
-     * If the sum of the probabilities is greater than 1 or if any of the probabilities are
-     * negative then the function will fail.
-     * @param target the object to choose what to do with
-     * @param pairs the pairs of probabilities and associated actions
+     * Obtains a randomly chosen element from a list.
+     * Precondition:  Assumes the list is non-empty
+     * @param values the list to choose from
+     * @return the randomly chosen value.
      */
-    public static void choose(final List<Pair<Float, Procedure>> pairs) {
-        float pSum = 0.0f;
-        
-        for (int i = 0; i < pairs.size(); ++i) {
-            final float probability = pairs.get(i).first;
-            assert probability > 0.0f;
-            pSum += probability;
+    public static <T> T randomElement(final List<T> values) {
+        return values.get((int) (values.size() * Math.random()));
+    }
+
+    /**
+     * Compute the average computed value given a list of arguments.
+     * @param args the list of arguments
+     * @param evaluator the evaluator to run on the arguments
+     * @return the average value computed by the evaluator on the list
+     */
+    public static <T> float averageComputedValue(final Collection<T> args, final Function<T, Float> evaluator) {
+        float total = 0.0f;
+        for (final T t : args) {
+            total += evaluator.apply(t);
         }
-
-        assert pSum <= 1.0f;
-
-        float value = (float) Math.random();
-
-        for (final Pair<Float, Procedure> pair : pairs) {
-            if (value <= pair.first) {
-                pair.second.execute();
-                return;
-            }
-            
-            value -= pair.first;
-        }
+        return total / args.size();
     }
 }
