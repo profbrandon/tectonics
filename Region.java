@@ -36,7 +36,7 @@ public class Region {
         STATIONARY
     }
 
-    private static final float DIVISION_RATIO = 0.5f;
+    private static final float DIVISION_RATIO = 0.003f;
 
     /**
      * The x dimension of the region.
@@ -639,7 +639,7 @@ public class Region {
      */
     public List<Region> divide() {
         final List<Point> points = getPoints();
-        final int numberOfCentroids = 1 + (int) (DIVISION_RATIO * Math.sqrt(points.size()));
+        final int numberOfCentroids = 1 + (int) (DIVISION_RATIO * points.size());
 
         final List<Pair<Integer, Point>> centroids = new ArrayList<>();
         final List<List<Pair<Point, Chunk>>> groups = new ArrayList<>(numberOfCentroids);

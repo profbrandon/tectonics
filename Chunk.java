@@ -3,7 +3,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Stack;
-
+import java.util.stream.Collectors;
 import java.awt.Color;
 
 public class Chunk {
@@ -268,6 +268,13 @@ public class Chunk {
         return mass / totalVolume;
     }
 
+    /**
+     * @return a list representation of the layers
+     */
+    public List<Layer> getLayers() {
+        if (mLayers.isEmpty()) return new ArrayList<>();
+        else return mLayers.stream().collect(Collectors.toList());
+    }
 
     /**
      * @param chunk the chunk to determine the depth it sinks

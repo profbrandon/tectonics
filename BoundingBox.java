@@ -51,8 +51,7 @@ public class BoundingBox {
      * @return whether the point is contained within the bounding box
      */
     public boolean contains(final Point point) {
-        return Util.onInterval(mLocation.x, mLocation.x + mDimensions.x - 1, point.x)
-            && Util.onInterval(mLocation.y, mLocation.y + mDimensions.y - 1, point.y);
+        return overlaps(new BoundingBox(point, new Point(1, 1)));
     }
 
     /**
@@ -61,6 +60,32 @@ public class BoundingBox {
      */
     public boolean nextTo(final Point point) {
         return expandByOne().contains(point) && !contains(point) && !corners().contains(point);
+    }
+
+    /**
+     * @param box the box to check against
+     * @return whether this bounding box overlaps the other
+     */
+    public boolean overlaps(final BoundingBox box) {
+        final Pair<Point, Point> pair1 = getIntervals();
+        final Pair<Point, Point> pair2 = box.getIntervals();
+
+        final Point xInt1 = pair1.first;
+        final Point xInt2 = pair2.first;
+        final Point yInt1 = pair1.second;
+        final Point yInt2 = pair2.second;
+
+        return Util.intervalsOverlap(xInt1.x, xInt1.y, xInt2.x, xInt2.y)
+            && Util.intervalsOverlap(yInt1.x, yInt1.y, yInt2.x, yInt2.y);
+    }
+
+    /**
+     * @return the intervals making up the box in ((x0,x1),(y0,y1)) form
+     */
+    public Pair<Point, Point> getIntervals() {
+        return new Pair<>(
+            new Point(mLocation.x, mLocation.x + mDimensions.x - 1),
+            new Point(mLocation.y, mLocation.y + mDimensions.y - 1));
     }
 
     /**

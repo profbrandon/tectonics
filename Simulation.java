@@ -12,9 +12,13 @@ import java.awt.Point;
 
 
 public class Simulation {
+    public static final Console console = new Console();
+
     public static final Length RUPTURE_THICKNESS = Length.fromKilometers(1.0f);
     public static final float BOUNDARY_THRESHOLD = 0.001f;
     public static final float SPRING_CONSTANT = 0.01f;
+    public static final float MAX_INIT_VELOCITY = 0.029f;
+    public static final float MANTLE_DENSITY = 3400f;
     public static final float DELTA_T = 0.01f;
 
     private final WrappedBox mWrappedBox;
@@ -25,14 +29,20 @@ public class Simulation {
 
     public Simulation(final int width, final int height, final int initialPlateCount) {
         mWrappedBox = new WrappedBox(width, height);
+        
+        console.startProgressBar("Splitting Area", 6);
         mPlates = splitArea(initialPlateCount);
+        console.completeProgressBar();
 
         final List<Region> regions = getRegions();
 
+        console.startProgressBar("Building Neighbor Graph", 10);
         mNeighborGraph = new Graph<>(regions);
 
         for (int i = 1; i < regions.size(); ++i) {
             final Region r1 = regions.get(i);
+
+            console.postToProgessBar("Checking against region " + i + "...");
 
             for (int j = 0; j < i; ++j) {
                 final Region r2 = regions.get(j);
@@ -47,8 +57,11 @@ public class Simulation {
                 }
             }
         }
+        console.completeProgressBar();
+        
+        reEvaluateHeightMaps();
 
-        reEvaluateHeightMaps(3500f);
+        System.out.println("Finished creating sim");
     }
 
     public void update() {
@@ -103,6 +116,9 @@ public class Simulation {
         return null;
     }
 
+    /**
+     * @return all of the regions in the simulation
+     */
     public List<Region> getRegions() {
         final List<Region> regions = new ArrayList<>();
         for (final Plate plate : mPlates) {
@@ -129,12 +145,11 @@ public class Simulation {
         for (final Region region : getRegions()) {
             final int rWidth = region.getWidth();
             final int rHeight = region.getHeight();
-            final Point offset = region.getPosition().truncate();
             final Boolean[][] regionPresent = region.toBooleanArray();
 
             for (int i = 0; i < rHeight; ++i) {
                 for (int j = 0; j < rWidth; ++j) {
-                    final Point wrappedGlobal = mWrappedBox.wrap(Util.sumPoints(new Point(j, i), offset));
+                    final Point wrappedGlobal = mWrappedBox.wrap(region.toGlobal(new Point(j, i)));
                     isPresent[wrappedGlobal.y][wrappedGlobal.x] |= regionPresent[i][j];
                 }
             }
@@ -163,32 +178,21 @@ public class Simulation {
         return emptyPoints;
     }
 
-
-    /**
-     * Determines if the two region's bounding boxes overlap.
-     * @param r1 the first region
-     * @param r2 the second region
-     * @return whether the two regions have overlapping bounding boxes.
-     */
-    public boolean boundingBoxesOverlap(final Region r1, final Region r2) {
-        return mWrappedBox.boundingBoxesOverlap(r1.getBoundingBox(), r2.getBoundingBox());
-    }
-
     /**
      * @param r1 the first region
      * @param r2 the second region
-     * @return whether the two regions are neighbors.
+     * @return whether the two regions are neighbors
      */
     public boolean areNeighbors(final Region r1, final Region r2) {
         if (r1 == r2) return false;
 
-        final Point offset = r1.getPosition().truncate();
+        final BoundingBox box1 = r1.getBoundingBox().expandByOne();
+        final BoundingBox box2 = r2.getBoundingBox();
+        if (!mWrappedBox.boundingBoxesOverlap(box1, box2)) return false;
 
-        for (final Point target : r1.getBoundary()) {
-            final Point adjusted = Util.sumPoints(target, offset);
-
-            for (final Point neighbor : mWrappedBox.getNeighbors(adjusted)) {
-                if (contains(r2, neighbor)) {
+        for (final Point globalBound : r1.getGlobalBoundary()) {
+            for (final Point globalNeighbor : r2.getGlobalNeighbors()) {
+                if (mWrappedBox.pointEquals(globalBound, globalNeighbor)) {
                     return true;
                 }
             }
@@ -201,16 +205,13 @@ public class Simulation {
      * @return
      */
     public Optional<Region> getRegionFromPoint(final Point point) {
+        final List<Point> duplicates = mWrappedBox.getNonWrappedDuplicates(point);
+
         for (final Region region : getRegions()) {
-            final BoundingBox box = region.getBoundingBox();
+            if (!mWrappedBox.withinBoundingBox(region.getBoundingBox(), point)) continue;
 
-            if (mWrappedBox.withinBoundingBox(box, point)) {
-                final Point offset = region.getPosition().truncate();
-                final Point transformed = Util.subPoints(point, offset);
-
-                if (mWrappedBox.getNonWrappedDuplicates(transformed).stream().anyMatch(
-                    duplicate -> region.contains(duplicate))) {
-
+            for (final Point duplicate : duplicates) {
+                if (region.contains(duplicate)) {
                     return Optional.of(region);
                 }
             }
@@ -232,15 +233,45 @@ public class Simulation {
     }
 
     /**
+     * @param region the target region
+     * @return the neighbors of the given region
+     */
+    public List<Region> getNeighboringRegions(final Region region) {
+        final List<Region> regions = getRegions();
+        final List<Region> neighbors = new ArrayList<>();
+        final List<Point> boundary = region.getGlobalBoundary();
+        final BoundingBox box1 = region.getBoundingBox().expandByOne();
+
+        // Eliminate regions that could not possibly border
+
+        for (final Region otherRegion : regions) {
+            if (otherRegion != region) {
+                if (!box1.overlaps(otherRegion.getBoundingBox())) continue;
+
+                final boolean adjacent = otherRegion.getGlobalNeighbors()
+                    .stream()
+                    .anyMatch(point1 -> 
+                        boundary.stream()
+                            .anyMatch(point2 -> mWrappedBox.pointEquals(point1, point2))
+                    );
+
+                if (adjacent) neighbors.add(otherRegion);
+            }
+        }
+
+        return neighbors;
+    }
+
+    /**
      * Determines whether the region contains the point in the wrapped context.
      * @param region the region
      * @param point the point in global coordinates
      * @return whether the region contains the point
      */
     public boolean contains(final Region region, final Point point) {
-        final Point offset = region.getPosition().negate().truncate();
+        final Point local = region.toLocal(point);
         return mWrappedBox.getNonWrappedDuplicates(point).stream().anyMatch(wrapped -> {
-            return region.contains(Util.sumPoints(wrapped, offset));
+            return region.contains(local);
         });
     }
 
@@ -297,11 +328,14 @@ public class Simulation {
         return classified;
     }
 
-    private void reEvaluateHeightMaps(final float mantleDensity) {
+    /**
+     * Re-evaluates the height maps
+     */
+    private void reEvaluateHeightMaps() {
         float totalDisplacement = 0.0f;
 
         for (final Region region : getRegions()) {
-            totalDisplacement += region.reEvaluateHeightMap(mantleDensity);
+            totalDisplacement += region.reEvaluateHeightMap(MANTLE_DENSITY);
         }
 
         final float chunkWidth = Chunk.WIDTH_IN_KM.toKilometers();
@@ -328,11 +362,15 @@ public class Simulation {
 
         final Boolean[][] alreadyGenerated = new Boolean[height][width];
 
+        console.updateProgressBar("Initializing boolean array");
+
         for (int i = 0; i < height; ++i) {
             for (int j = 0; j < width; ++j) {
                 alreadyGenerated[i][j] = false;
             }
         }
+
+        console.updateProgressBar("Generating initial plate points");
 
         for (int i = 0; i < plateCount; ++i) {
             final List<Point> points = new ArrayList<>();
@@ -347,8 +385,6 @@ public class Simulation {
             while(alreadyGenerated[pointY][pointX]);
 
             final Point p = new Point(pointX, pointY);
-            System.out.println("Plate " + i + " has initial point " + p);
-
             points.add(p);
             pointGroups.put(i, points);
             alreadyGenerated[p.y][p.x] = true;
@@ -361,6 +397,8 @@ public class Simulation {
 
             possibleGroups.put(i, neighbors.stream().collect(Collectors.toList()));
         }
+
+        console.updateProgressBar("Collecting plate points");
 
         while (possibleGroups.values().stream().filter(list -> !list.isEmpty()).count() != 0) {
             for (int i = 0; i < plateCount; ++i) {
@@ -387,13 +425,17 @@ public class Simulation {
             }
         }
 
+        console.updateProgressBar("Generating chunks");
+
         final List<Plate> plates = new ArrayList<>();
         final List<List<Chunk>> chunks = Util.generateChunks(
             (int) (width / 50.0),
             (int) (height / 50.0),
             50,
-            Length.fromKilometers(4.0f).toMeters(),
-            Length.fromKilometers(10.0f).toMeters());
+            Length.fromKilometers(0.5f).toMeters(),
+            Length.fromKilometers(1.5f).toMeters());
+
+        console.updateProgressBar("Building regions");
 
         for (final List<Point> points : pointGroups.values()) {
             final Boolean[][] isPresent = new Boolean[height][width];
@@ -409,11 +451,11 @@ public class Simulation {
             }
 
             final Region initRegion = Region.buildRegion(Util.mask(chunks, isPresent), Vec.ZERO);
-            final Vec initVelocity = Vec.randomDirection(0.029f * (float) Math.random() + 0.001f);
+            final Vec initVelocity = Vec.randomDirection(MAX_INIT_VELOCITY * (float) Math.random() + 0.001f);
             final List<Region> regions = new ArrayList<>();
 
             for (final Region region : initRegion.divide()) {
-                region.setVelocity(Vec.sum(initVelocity, Vec.ZERO)); // Vec.randomDirection(0.001f * (float) Math.random())));
+                region.setVelocity(Vec.sum(initVelocity, Vec.ZERO));
                 regions.add(region);
             }
 

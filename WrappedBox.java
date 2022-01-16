@@ -1,9 +1,9 @@
 
 import java.awt.Point;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.Optional;
-import java.util.Set;
+import java.util.List;
 
 public class WrappedBox {
 
@@ -57,9 +57,9 @@ public class WrappedBox {
      * @param point the point to duplicate
      * @return the duplicated points
      */
-    public Set<Point> getNonWrappedDuplicates(final Point point) {
+    public List<Point> getNonWrappedDuplicates(final Point point) {
         final Point wrapped = wrap(point);
-        final Set<Point> duplicates = new HashSet<>(9);
+        final List<Point> duplicates = new ArrayList<>(9);
         duplicates.add(new Point(wrapped.x - mWidth, wrapped.y - mHeight));
         duplicates.add(new Point(wrapped.x,          wrapped.y - mHeight));
         duplicates.add(new Point(wrapped.x + mWidth, wrapped.y - mHeight));
@@ -80,9 +80,9 @@ public class WrappedBox {
      * @param vec the vector to duplicate
      * @return the duplicated vectors
      */
-    public Set<Vec> getNonWrappedDuplicates(final Vec vec) {
+    public List<Vec> getNonWrappedDuplicates(final Vec vec) {
         final Vec wrapped = wrap(vec);
-        final Set<Vec> duplicates = new HashSet<>(9);
+        final List<Vec> duplicates = new ArrayList<>(9);
         duplicates.add(new Vec(wrapped.x - mWidth, wrapped.y - mHeight));
         duplicates.add(new Vec(wrapped.x,          wrapped.y - mHeight));
         duplicates.add(new Vec(wrapped.x + mWidth, wrapped.y - mHeight));
@@ -95,6 +95,22 @@ public class WrappedBox {
         duplicates.add(new Vec(wrapped.x,          wrapped.y + mHeight));
         duplicates.add(new Vec(wrapped.x + mWidth, wrapped.y + mHeight));
         return duplicates;
+    }
+
+    /**
+     * Builds a collection of bounding boxes that represent the duplicates of the
+     * bounding box in (x,y) coordinate space (unwrapped).
+     * @param box the box to duplicate
+     * @return the duplicated bounding boxes
+     */
+    public List<BoundingBox> getNonWrappedDuplicates(final BoundingBox box) {
+        final List<BoundingBox> boxes = new ArrayList<>();
+
+        for (final Point upperLeft : getNonWrappedDuplicates(box.mLocation)) {
+            boxes.add(new BoundingBox(upperLeft, box.mDimensions));
+        }
+
+        return boxes;
     }
 
     /**
@@ -157,8 +173,8 @@ public class WrappedBox {
      * @param point the point whose neighbors are computed
      * @return the wrapped neighbors
      */
-    public Set<Point> getNeighbors(final Point point) {
-        final Set<Point> neighbors = new HashSet<>();
+    public List<Point> getNeighbors(final Point point) {
+        final List<Point> neighbors = new ArrayList<>();
         neighbors.add(wrap(new Point(point.x + 1, point.y)));
         neighbors.add(wrap(new Point(point.x - 1, point.y)));
         neighbors.add(wrap(new Point(point.x, point.y + 1)));
@@ -171,8 +187,8 @@ public class WrappedBox {
      * @param point the point whose 8 neighbors are computed
      * @return the wrapped neighbors
      */
-    public Set<Point> get8Neighbors(final Point point) {
-        final Set<Point> neighbors = getNeighbors(point);
+    public List<Point> get8Neighbors(final Point point) {
+        final List<Point> neighbors = getNeighbors(point);
         neighbors.add(wrap(new Point(point.x + 1, point.y + 1)));
         neighbors.add(wrap(new Point(point.x + 1, point.y - 1)));
         neighbors.add(wrap(new Point(point.x - 1, point.y + 1)));
@@ -185,8 +201,8 @@ public class WrappedBox {
      * @param point the point to get a cluster around
      * @return the cluster of points
      */
-    public Set<Point> getCluster(final Point point, final int radius) {
-        final Set<Point> neighbors = new HashSet<>();
+    public List<Point> getCluster(final Point point, final int radius) {
+        final List<Point> neighbors = new ArrayList<>();
 
         for (int i = -radius; i <= radius; ++i) {
             for (int j = -radius; j <= radius; ++j) {
@@ -203,16 +219,16 @@ public class WrappedBox {
 
     /**
      * <p>Method to retrieve the immediate neighbors of the collection of {@link Point}s,
-     * excluding all of the original points, specifically, if P is the set of
+     * excluding all of the original points, specifically, if P is the List of
      * points, then</p>
      * 
      * <p>ExclusiveNeighbors(P) = U{p in P | Neighbors(p)} \ P</p>
      * @param points the points to examine
      * @return the collection of neighbor points that are not contained in the
-     *         original set of points
+     *         original List of points
      */
-    public Set<Point> getExclusiveNeighbors(final Collection<Point> points) {
-        final Set<Point> neighbors = new HashSet<>();
+    public List<Point> getExclusiveNeighbors(final Collection<Point> points) {
+        final List<Point> neighbors = new ArrayList<>();
         for (final Point point : points) {
             neighbors.addAll(getNeighbors(point));
         }
@@ -275,9 +291,8 @@ public class WrappedBox {
      * @return whether the point is within the box
      */
     public boolean withinBoundingBox(final BoundingBox box, final Point point) {
-        final Point upperLeft = wrap(box.mLocation);
-        return withinVerticalFrame(upperLeft.x, box.mDimensions.x, point)
-            && withinHorizontalFrame(upperLeft.y, box.mDimensions.y, point);
+        final Point wrapped = wrap(point);
+        return getNonWrappedDuplicates(box).stream().anyMatch(duplicate -> duplicate.contains(wrapped));
     }
 
     /**
@@ -290,8 +305,7 @@ public class WrappedBox {
      * @return whether the bounding boxes overlap
      */
     public boolean boundingBoxesOverlap(final BoundingBox box1, final BoundingBox box2) {
-        return box1.corners().stream().anyMatch(p -> withinBoundingBox(box2, wrap(p)))
-            || box2.corners().stream().anyMatch(p -> withinBoundingBox(box1, wrap(p)));
+        return getNonWrappedDuplicates(box1).stream().anyMatch(duplicate -> duplicate.overlaps(box2));
     }
 
     /**
