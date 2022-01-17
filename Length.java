@@ -1,5 +1,7 @@
 public class Length {
 
+    public static final Length ZERO = new Length(0f);
+
     private static final float M_PER_KM = 1000f;
     private static final float M_PER_CM = 0.01f; 
 
@@ -38,6 +40,14 @@ public class Length {
 
     public Length scale(final float factor) {
         return Length.fromMeters(mMeters * factor);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof Length) {
+            return mMeters == ((Length) obj).mMeters;
+        }
+        return false;
     }
 
 
@@ -87,4 +97,5 @@ public class Length {
 
         return product;
     }
+
 }

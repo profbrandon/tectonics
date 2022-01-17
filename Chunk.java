@@ -183,6 +183,8 @@ public class Chunk {
      * Class to represent a layer of rock
      */
     public static class Layer {
+        public static final Layer FAULT = new Layer(null, 0f);
+
         public final RockType mRockType;
         public final Length mThickness;
 
@@ -216,6 +218,15 @@ public class Chunk {
 
             return Length.fromMeters(totalMeters);
         }
+    
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof Layer) {
+                final Layer layer = (Layer) obj;
+                return mRockType == layer.mRockType && mThickness.equals(layer.mThickness);
+            }
+            return false;
+        }
     }
 
     /**
@@ -228,6 +239,50 @@ public class Chunk {
      */
     public void deposit(final Layer depositionLayer) {
         this.mLayers.push(depositionLayer);
+    }
+
+    /**
+     * @param length the height of top rock to remove
+     * @return the chunk representing the top height of rock
+     */
+    public Chunk removeTop(final Length length) {
+        final Chunk chunk = new Chunk();
+        final Stack<Layer> toDeposit = new Stack<>();
+
+        float metersToGo = length.toMeters();
+
+        while (!mLayers.isEmpty()) {
+            final Layer top = mLayers.pop();
+            final float thickness = top.mThickness.toMeters();
+
+            if (thickness < metersToGo) {
+                toDeposit.push(top);
+                metersToGo -= thickness;
+            }
+            else if (thickness == metersToGo) {
+                toDeposit.push(top);
+                break;
+            }
+            else {
+                toDeposit.push(new Layer(top.mRockType, metersToGo));
+                deposit(new Layer(top.mRockType, thickness - metersToGo));
+                break;
+            }
+        }
+
+        while (!toDeposit.isEmpty()) {
+            chunk.deposit(toDeposit.pop());
+        }
+
+        return chunk;
+    }
+
+    /**
+     * @param percent the percentage of rock to remove
+     * @return the chunk representing teh top height of rock
+     */
+    public Chunk removeTop(final float percent) {
+        return removeTop(getThickness().scale(percent));
     }
 
     /**

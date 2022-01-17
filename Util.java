@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.awt.Point;
 import java.awt.Color;
 
@@ -70,6 +71,33 @@ public class Util {
         final int dx = p2.x - p1.x;
         final int dy = p2.y - p1.y;
         return (float) Math.sqrt(dx * dx + dy * dy);
+    }
+
+    /**
+     * Calculates the absolute-value distance between two points.
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return The absolute-value distance: |x1 - x2| + |y1 - y2|
+     */
+    public static int absoluteDistance(final Point p1, final Point p2) {
+        return Math.abs(p1.x - p2.x) + Math.abs(p1.y - p2.y);
+    }
+
+    /**
+     * Computes a list of points that are within a certain distance from the center points.
+     * @param centerPoints the center points
+     * @param from the points to filter from
+     * @param radius the radius to collect
+     * @return the points that are within the radius from any center point
+     */
+    public static List<Point> getPointRing(final List<Point> centerPoints, final List<Point> from, final int radius) {
+        return from
+            .stream()
+            .filter(point -> 
+                centerPoints
+                    .stream()
+                    .anyMatch(center -> absoluteDistance(center, point) <= radius))
+            .collect(Collectors.toList());
     }
 
     /**

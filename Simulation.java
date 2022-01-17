@@ -201,6 +201,25 @@ public class Simulation {
     }
 
     /**
+     * @param point the point to retrieve the chunk from
+     * @return potentially the chunk at that position
+     */
+    public Optional<Chunk> getChunk(final Point point) {
+        final Optional<Region> maybeRegion = getRegionFromPoint(point);
+
+        if (maybeRegion.isPresent()) {
+            final Region region = maybeRegion.get();
+            final Optional<Point> global = mWrappedBox.getUnwrapped(region.getBoundingBox(), point);
+
+            if (global.isPresent()) {
+                return region.getChunkAt(region.toLocal(global.get()));
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    /**
      * @param point boundary point in global (x,y) coordinate space
      * @return
      */
