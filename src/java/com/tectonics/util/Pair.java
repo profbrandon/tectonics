@@ -1,3 +1,4 @@
+package com.tectonics.util;
 
 /**
  * Utility class to represent a pair of objects, potentially of different types.

@@ -1,4 +1,7 @@
+package com.tectonics.gui;
 
+import java.awt.event.ActionEvent;
+import java.awt.BorderLayout;
 
 import javax.swing.AbstractAction;
 import javax.swing.BoxLayout;
@@ -11,8 +14,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.WindowConstants;
 
-import java.awt.event.ActionEvent;
-import java.awt.BorderLayout;
+import com.tectonics.Simulation;
 
 
 public class TectonicSim extends JFrame {

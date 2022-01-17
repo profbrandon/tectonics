@@ -1,3 +1,4 @@
+package com.tectonics.plates;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -5,6 +6,8 @@ import java.util.List;
 import java.util.Stack;
 import java.util.stream.Collectors;
 import java.awt.Color;
+
+import com.tectonics.util.Length;
 
 public class Chunk {
     public static final Length WIDTH_IN_KM = Length.fromKilometers(1.0f);

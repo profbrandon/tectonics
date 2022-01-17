@@ -1,15 +1,22 @@
-
+package com.tectonics.gui;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Point;
 
 import javax.swing.JPanel;
+
+import com.tectonics.Simulation;
+import com.tectonics.util.Util;
+import com.tectonics.util.Pair;
+import com.tectonics.util.Vec;
+import com.tectonics.util.Graph;
+import com.tectonics.plates.Chunk;
+import com.tectonics.plates.Region;
 
 public class SimulationPanel extends JPanel {
     

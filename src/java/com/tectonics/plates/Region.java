@@ -1,17 +1,25 @@
+package com.tectonics.plates;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
-import javax.imageio.ImageIO;
-
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.image.BufferedImage;
-
 import java.io.File;
+import java.io.IOException;
+
+import javax.imageio.ImageIO;
+
+import com.tectonics.util.Vec;
+import com.tectonics.util.BoolArrayUtil;
+import com.tectonics.util.Pair;
+import com.tectonics.util.Util;
+import com.tectonics.util.BoundingBox;
+import com.tectonics.util.Console;
+import com.tectonics.util.Length;
 
 
 /**
@@ -748,9 +756,14 @@ public class Region {
      * @return the matrix and its dimensions
      */
     public static Optional<Region> importRegionShapeFromPNG(final String filename) {
+        final Console console = new Console();
+        console.startProgressBar("Loading Image From PNG", 4);
+
         try {
+            console.updateProgressBar("Reading image into buffer");
             final BufferedImage image = ImageIO.read(new File(filename));
 
+            console.updateProgressBar("Constructing chunks");
             final int width  = image.getWidth();
             final int height = image.getHeight();
 
@@ -769,10 +782,14 @@ public class Region {
                 }
             }
 
+            console.updateProgressBar("Building region from chunks");
             return Optional.of(buildRegion(chunkPairs, Vec.ZERO));
 
-        } catch(final Exception exception) {
+        } catch (final IOException exception) {
+            console.failProgressBar("Could not open image.");
             return Optional.empty();
+        } finally {
+            console.completeProgressBar();
         }
     }
 

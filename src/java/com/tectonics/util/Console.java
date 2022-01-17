@@ -1,6 +1,7 @@
+package com.tectonics.util;
+
 import java.io.PrintStream;
 import java.util.Optional;
-
 
 public class Console {
     
@@ -57,11 +58,20 @@ public class Console {
         });
     }
 
+    public void failProgressBar(final String message) {
+        mProgressBar.ifPresent(progressBar -> {
+            carriageReturn();
+            println(progressBar.getFailureMessage(message));
+        });
+        mProgressBar = Optional.empty();
+    }
+
     public void completeProgressBar() {
         mProgressBar.ifPresent(progressBar -> {
             progressBar.complete();
             printR(progressBar + "\n");
         });
+        mProgressBar = Optional.empty();
     }
 
     public void notify(final String message) {
@@ -145,6 +155,15 @@ public class Console {
 
         public boolean isComplete() {
             return mCurrentValue == mMaxValue;
+        }
+
+        public String getFailureMessage(final String message) {
+            final StringBuilder stringBuilder =
+                new StringBuilder(mTitle.length() + 12 + message.length());
+
+            stringBuilder.append(mTitle + " : Failed - " + message);
+
+            return stringBuilder.toString();
         }
 
         @Override

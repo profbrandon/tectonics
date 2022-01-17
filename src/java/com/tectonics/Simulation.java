@@ -1,15 +1,16 @@
-
+package com.tectonics;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.awt.Point;
 
+import com.tectonics.util.*;
+import com.tectonics.plates.*;
 
 public class Simulation {
     public static final Console console = new Console();
@@ -454,7 +455,7 @@ public class Simulation {
         console.updateProgressBar("Generating chunks");
 
         final List<Plate> plates = new ArrayList<>();
-        final List<List<Chunk>> chunks = Util.generateChunks(
+        final List<List<Chunk>> chunks = TerrainGeneration.generateChunks(
             (int) (width / 50.0),
             (int) (height / 50.0),
             50,

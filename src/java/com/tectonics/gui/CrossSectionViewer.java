@@ -1,3 +1,5 @@
+package com.tectonics.gui;
+
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -8,6 +10,8 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
+
+import com.tectonics.plates.Chunk;
 
 public class CrossSectionViewer extends JPanel {
 

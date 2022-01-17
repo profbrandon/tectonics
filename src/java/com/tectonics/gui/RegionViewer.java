@@ -1,3 +1,4 @@
+package com.tectonics.gui;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -21,6 +22,11 @@ import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 
+import com.tectonics.util.Vec;
+import com.tectonics.util.BoundingBox;
+import com.tectonics.plates.Chunk;
+import com.tectonics.plates.Region;
+
 
 public class RegionViewer extends JFrame {
 
@@ -28,17 +34,12 @@ public class RegionViewer extends JFrame {
         super("Region Viewer");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
-        System.out.print("Loading Region... ");
-
-        final Optional<Region> optional = Region.importRegionShapeFromPNG("region0.png");
+        final Optional<Region> optional = Region.importRegionShapeFromPNG("src/resources/region0.png");
 
         if (optional.isEmpty()) {
-            System.out.println("Failed");
             dispose();
             return;
         }
-
-        System.out.println("Success");
 
         final Region region = optional.get();
         final RegionPanel regionPanel = new RegionPanel(region);
