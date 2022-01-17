@@ -6,6 +6,7 @@ import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -125,7 +126,8 @@ public class RegionViewer extends JFrame {
             DEFAULT,
             IS_PRESENT,
             BOUNDARY,
-            ELEVATION
+            ELEVATION,
+            SHADOWS
         }
 
         private Optional<Point> mSelected = Optional.empty();
@@ -211,6 +213,10 @@ public class RegionViewer extends JFrame {
                         case ELEVATION:
                             g.setColor(Color.WHITE);
                             break;
+
+                        case SHADOWS:
+                            g.setColor(new Color(20, 20, 20));
+                            break;
                     }
                 }
 
@@ -225,6 +231,28 @@ public class RegionViewer extends JFrame {
                     final int y = neighbor.y + 10;
 
                     g.drawLine(x, y, x, y);
+                }
+            }
+
+            if (mViewingMode == ViewingMode.SHADOWS) {
+                final List<List<Point>> shadows = region.getGlobalShadows();
+
+                final Color[] shadowColors = {
+                    new Color(255,   0,   0, 84),
+                    new Color(255, 255,   0, 84),
+                    new Color(0,   255,   0, 84),
+                    new Color(0,     0, 255, 84)
+                };
+
+                for (int i = 0; i < 4; ++i) {
+                    g.setColor(shadowColors[i]);
+                    
+                    for (final Point shadowPoint : shadows.get(i)) {
+                        final int x = shadowPoint.x;
+                        final int y = shadowPoint.y;
+
+                        g.drawLine(x, y, x, y);
+                    }
                 }
             }
 

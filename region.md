@@ -59,6 +59,8 @@
 * `List<Point> getGlobalBoundary()`
 * `List<Point> getNeighbors()`
 * `List<Point> getGlobalNeighbors()`
+* `List<List<Point>> getShadows()`
+* `List<List<Point>> getGlobalShadows()`
 * `BoundingBox getBoundingBox()`
 
 ### Modifiers
@@ -102,6 +104,8 @@ Note: Although `partition` and `divide` don't directly modify a region, the chil
         - `getGlobalBoundary`
         - `getNeighbors`
         - `getGlobalNeighbors`
+        - `getShadows`
+        - `getGlobalShadows`
         - `getBoundingBox`
     <br>
     + And methods that cause invalidation are:

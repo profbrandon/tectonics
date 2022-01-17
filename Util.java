@@ -10,6 +10,13 @@ import java.awt.Color;
 
 public class Util {
     
+    public static final Point[] DIRECTIONS = {
+        new Point(1, 0),
+        new Point(0, 1),
+        new Point(-1, 0),
+        new Point(0, -1)
+    };
+
     /**
      * @param point1 the first point
      * @param point2 the second point
@@ -33,6 +40,38 @@ public class Util {
         neighbors.add(new Point(point.x, point.y + 1));
         neighbors.add(new Point(point.x, point.y - 1));
         return neighbors;
+    }
+
+    /**
+     * TODO: Finish writing this method
+     */
+    public static List<Point> getLine(final Vec start, final Vec end) {
+        final List<Point> points = new ArrayList<>();
+
+        final Point point1 = start.truncate();
+        final Point point2 = end.truncate();
+        final Point delta = subPoints(point1, point2);
+
+        if (Math.abs(delta.y) == 0) {
+            final int minX = Math.min(point1.x, point2.x);
+            
+            for (int i = 0; i <= delta.x; ++i) {
+                points.add(new Point(minX + i, point1.y));
+            }
+
+            return points;
+        }
+        else if (Math.abs(delta.x) == 0) {
+            final int minY = Math.min(point1.y, point2.y);
+
+            for (int i = 0; i <= delta.y; ++i) {
+                points.add(new Point(point1.x, minY + i));
+            }
+
+            return points;
+        }
+    
+        return points;
     }
 
     /**

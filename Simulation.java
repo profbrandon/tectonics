@@ -18,7 +18,7 @@ public class Simulation {
     public static final float BOUNDARY_THRESHOLD = 0.001f;
     public static final float SPRING_CONSTANT = 0.01f;
     public static final float MAX_INIT_VELOCITY = 0.029f;
-    public static final float MANTLE_DENSITY = 3400f;
+    public static final float MANTLE_DENSITY = 4500f;
     public static final float DELTA_T = 0.01f;
 
     private final WrappedBox mWrappedBox;
@@ -66,6 +66,8 @@ public class Simulation {
 
     public void update() {
         // Update positions and velocities
+        final List<Pair<Region, Point>> regionMovements = new ArrayList<>();
+
         for (final Region region : getRegions()) {
             final int index0 = mNeighborGraph.getIndex(region);
             final Vec c0 = region.getCentroid();
@@ -93,10 +95,15 @@ public class Simulation {
             final Vec position = region.getPosition();
             region.setPosition(mWrappedBox.wrap(Vec.sum(position, Vec.scale(region.getVelocity(), DELTA_T))));
             region.setVelocity(Vec.sum(region.getVelocity(), Vec.scale(acceleration, DELTA_T)));
+            
+            final Vec newPosition = region.getPosition();
+            regionMovements.add(new Pair<>(region, Vec.sum(newPosition, position.negate()).truncateTowardsZero()));
         }
 
+        
+
         // Recompute Height Maps
-        //reEvaluateHeightMaps(3500f);
+        reEvaluateHeightMaps();
     }
 
     public WrappedBox getWrappedBox() {

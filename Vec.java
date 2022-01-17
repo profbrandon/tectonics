@@ -45,6 +45,10 @@ public class Vec {
         return new Point((int) x, (int) y);
     }
 
+    public Point truncateTowardsZero() {
+        return new Point(2 * Math.round(0.5f * x), 2 * Math.round(0.5f * y));
+    }
+
     public void paint(final Graphics g, final Color color, final float scale, final Point position) {
         final Color prevColor = g.getColor();
         g.setColor(color);

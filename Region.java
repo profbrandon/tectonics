@@ -456,6 +456,45 @@ public class Region {
     }
 
     /**
+     * See 'shadow-example.png'.
+     * @return a list of shadows of the local boundary
+     */
+    public List<List<Point>> getShadows() {
+        final List<List<Point>> shadows = new ArrayList<>(4);
+        final List<Point> boundary = getBoundary();
+
+        for (final Point direction : Util.DIRECTIONS) {
+            final List<Point> shadow = new ArrayList<>();
+
+            for (final Point boundaryPoint : boundary) {
+                final Point shadowPoint = Util.subPoints(boundaryPoint, direction);
+
+                if (!contains(shadowPoint)) {
+                    shadow.add(shadowPoint);
+                }
+            }
+
+            shadows.add(shadow);
+        }
+
+        return shadows;
+    }
+
+    /**
+     * See 'shadow-example.png'.
+     * @return a list of shadows of the global boundary
+     */
+    public List<List<Point>> getGlobalShadows() {
+        return getShadows()
+            .stream()
+            .map(shadow -> shadow
+                .stream()
+                .map(this::toGlobal)
+                .collect(Collectors.toList()))
+            .collect(Collectors.toList());
+    }
+
+    /**
      * @return The bounding box of this region in local coordinates
      */
     public BoundingBox getBoundingBox() {
