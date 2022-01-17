@@ -16,7 +16,6 @@ import javax.swing.WindowConstants;
 
 import com.tectonics.Simulation;
 
-
 public class TectonicSim extends JFrame {
     
     private final SimulationPanel mSimPanel;
