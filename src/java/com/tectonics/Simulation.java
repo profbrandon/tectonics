@@ -15,12 +15,12 @@ import com.tectonics.plates.*;
 public class Simulation {
     public static final Console console = new Console();
 
-    public static final Length RUPTURE_THICKNESS = Length.fromKilometers(1.0f);
+    public static final Length RUPTURE_THICKNESS = Length.fromKilometers(2.0f);
     public static final float BOUNDARY_THRESHOLD = 0.001f;
-    public static final float SPRING_CONSTANT = 0.01f;
+    public static final float SPRING_CONSTANT = 0.001f;
     public static final float MAX_INIT_VELOCITY = 0.029f;
     public static final float MANTLE_DENSITY = 4500f;
-    public static final float DELTA_T = 0.01f;
+    public static final float DELTA_T = 0.1f;
 
     private final WrappedBox mWrappedBox;
     
@@ -97,11 +97,43 @@ public class Simulation {
             region.setPosition(mWrappedBox.wrap(Vec.sum(position, Vec.scale(region.getVelocity(), DELTA_T))));
             region.setVelocity(Vec.sum(region.getVelocity(), Vec.scale(acceleration, DELTA_T)));
             
-            final Vec newPosition = region.getPosition();
-            regionMovements.add(new Pair<>(region, Vec.sum(newPosition, position.negate()).truncateTowardsZero()));
+            final Point oldPosition = position.truncate();
+            final Point newPosition = region.getPosition().truncate();
+
+            if (!oldPosition.equals(newPosition)) {
+                regionMovements.add(new Pair<>(region, Util.subPoints(newPosition, oldPosition)));
+            }
         }
 
-        
+        // TODO: Update neighbor graph
+
+        // Handle Rift Zones
+        for (final Pair<Region, Point> movement : regionMovements) {
+            final Region movedRegion = movement.first;
+            final List<Point> shadow = movedRegion.getGlobalShadow(movement.second);
+            final List<Region> neighbors = getNeighboringRegions(movedRegion);
+
+            // Fill empty points below the rupture thickness
+            for (final Point shadowPoint : shadow) {
+                TerrainGeneration.fillEmptyPoint(shadowPoint, mWrappedBox, getNeighboringRegions(shadowPoint));
+            }
+
+            final List<Pair<Region, List<Point>>> subdividedShadows = new ArrayList<>();
+
+            for (final Region neighbor : neighbors) {
+                final List<Point> subShadow = new ArrayList<>();
+
+                for (final Point shadowPoint : shadow) {
+                    if (mWrappedBox.contains(neighbor.getNeighbors(), shadowPoint)) {
+                        subShadow.add(shadowPoint);
+                    }
+                }
+
+                subdividedShadows.add(new Pair<>(neighbor, subShadow));
+            }
+
+            // TODO: Handle subdivided shadows
+        }
 
         // Recompute Height Maps
         reEvaluateHeightMaps();
@@ -232,15 +264,11 @@ public class Simulation {
      * @return
      */
     public Optional<Region> getRegionFromPoint(final Point point) {
-        final List<Point> duplicates = mWrappedBox.getNonWrappedDuplicates(point);
-
         for (final Region region : getRegions()) {
-            if (!mWrappedBox.withinBoundingBox(region.getBoundingBox(), point)) continue;
+            final Optional<Point> maybePoint = mWrappedBox.getUnwrapped(region.getBoundingBox(), point);
 
-            for (final Point duplicate : duplicates) {
-                if (region.contains(duplicate)) {
-                    return Optional.of(region);
-                }
+            if (maybePoint.isPresent()) {
+                return Optional.of(region);
             }
         }
 
@@ -252,11 +280,14 @@ public class Simulation {
      * @return a list of regions neighboring this point
      */
     public List<Region> getNeighboringRegions(final Point point) {
-        return mWrappedBox.getNeighbors(point).stream()
-            .map(this::getRegionFromPoint)
-            .filter(opt -> opt.isPresent())
-            .map(Optional::get)
-            .collect(Collectors.toList());
+        final List<Region> regions = new ArrayList<>();
+        final List<Point> neighborPoints = mWrappedBox.getNeighbors(point);
+
+        for (final Point neighborPoint : neighborPoints) {
+            getRegionFromPoint(neighborPoint).ifPresent(neighborRegion -> regions.add(neighborRegion));
+        }
+
+        return regions;
     }
 
     /**
@@ -460,7 +491,7 @@ public class Simulation {
             (int) (height / 50.0),
             50,
             Length.fromKilometers(0.5f).toMeters(),
-            Length.fromKilometers(1.5f).toMeters());
+            Length.fromKilometers(4.0f).toMeters());
 
         console.updateProgressBar("Building regions");
 
@@ -478,6 +509,9 @@ public class Simulation {
             }
 
             final Region initRegion = Region.buildRegion(Util.mask(chunks, isPresent), Vec.ZERO);
+            final Vec position = initRegion.getPosition();
+            initRegion.setPosition(Vec.sum(position, new Vec(0.49f, 0.49f)));
+
             final Vec initVelocity = Vec.randomDirection(MAX_INIT_VELOCITY * (float) Math.random() + 0.001f);
             final List<Region> regions = new ArrayList<>();
 

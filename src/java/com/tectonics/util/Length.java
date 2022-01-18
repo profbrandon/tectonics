@@ -52,6 +52,13 @@ public class Length {
         return false;
     }
 
+    public boolean lessThan(final Length length) {
+        return mMeters < length.mMeters;
+    }
+
+    public boolean lessThanEquals(final Length length) {
+        return mMeters <= length.mMeters;
+    }
 
 
     public static Length fromMeters(final float meters) {

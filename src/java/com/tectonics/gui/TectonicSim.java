@@ -30,8 +30,8 @@ public class TectonicSim extends JFrame {
         super("Tectonic Simulator");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
-        final int width  = 800;
-        final int height = 600;
+        final int width  = 300;
+        final int height = 300;
 
 
         // Components

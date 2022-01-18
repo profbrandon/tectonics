@@ -1,13 +1,16 @@
 package com.tectonics.plates;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.ArrayList;
 import java.util.stream.Collectors;
 import java.awt.Point;
 
 import com.tectonics.util.Util;
 import com.tectonics.util.WrappedBox;
+import com.tectonics.Simulation;
 import com.tectonics.util.BoundingBox;
+import com.tectonics.util.Length;
 import com.tectonics.util.Vec;
 
 public class TerrainGeneration {
@@ -21,31 +24,29 @@ public class TerrainGeneration {
         
         final BoundingBox selectedBox = selected.getBoundingBox();
 
-        // Neighbors in local coordinates
-        final List<Point> neighborPoints = wrappedBox.getNeighbors(point)
-            .stream()
-            .filter(selected::containsGlobal)
-            .map(neighbor -> 
-                Vec.sum(
-                    Vec.extend(wrappedBox.getUnwrapped(selectedBox, neighbor).get()),
-                    selected.getPosition().negate()).truncate())
-            .collect(Collectors.toList());
+        final List<Chunk> chunks = new ArrayList<>();
 
-        final float averageThickness = Util.averageComputedValue(neighborPoints, neighbor -> {
-            return selected.getChunkAt(neighbor.x, neighbor.y).get().getThickness().toKilometers();
-        });
+        for (final Point neighborPoint : wrappedBox.getNeighbors(point)) {
+            for (final Region region : neighbors) {
+                final Optional<Point> unwrapped = wrappedBox.getUnwrapped(region.getBoundingBox(), neighborPoint);
 
-        if (true || averageThickness <= 1.0f) {
+                if (unwrapped.isPresent()) {
+                    final Point unwrappedNeighbor = unwrapped.get();
+
+                    region.getChunkAt(region.toLocal(unwrappedNeighbor)).ifPresent(chunks::add);
+                }
+            }
+        }
+
+        final Length averageThickness = Length.fromMeters(Util.averageComputedValue(chunks, chunk -> chunk.getThickness().toMeters()));
+
+        if (averageThickness.lessThanEquals(Simulation.RUPTURE_THICKNESS)) {
             final Chunk chunk = new Chunk();
-            chunk.deposit(new Chunk.Layer(Chunk.RockType.BASALT, averageThickness * 0.9f));
+            chunk.deposit(new Chunk.Layer(Chunk.RockType.BASALT, averageThickness.scale(0.9f).toMeters()));
 
-            final Point bordering = wrappedBox.getNonWrappedDuplicates(point)
-                .stream()
-                .filter(duplicate -> selectedBox.nextTo(duplicate))
-                .map(duplicate -> Vec.sum(Vec.extend(duplicate), selected.getPosition().negate()).truncate())
-                .collect(Collectors.toList()).get(0);
+            final Point bordering = selected.toLocal(wrappedBox.getUnwrapped(selectedBox.expandByOne(), point).get());
 
-            selected.setChunk(bordering.x, bordering.y, chunk);
+            selected.setChunk(bordering, chunk);
         }
     }
 

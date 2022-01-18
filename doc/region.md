@@ -59,6 +59,8 @@
 * `List<Point> getGlobalBoundary()`
 * `List<Point> getNeighbors()`
 * `List<Point> getGlobalNeighbors()`
+* `List<Point> getShadow(final Point direction)`
+* `List<Point> getGlobalShadow(final Point direction)`
 * `List<List<Point>> getShadows()`
 * `List<List<Point>> getGlobalShadows()`
 * `BoundingBox getBoundingBox()`

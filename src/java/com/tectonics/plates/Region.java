@@ -464,6 +464,36 @@ public class Region {
     }
 
     /**
+     * @param direction the direction of movement
+     * @return the shadow (opposite direction)
+     */
+    public List<Point> getShadow(final Point direction) {
+        final List<Point> boundary = getBoundary();
+        final List<Point> shadow = new ArrayList<>();
+
+        for (final Point boundaryPoint : boundary) {
+            final Point shadowPoint = Util.subPoints(boundaryPoint, direction);
+
+            if (!contains(shadowPoint)) {
+                shadow.add(shadowPoint);
+            }
+        }
+
+        return shadow;
+    }
+
+    /**
+     * @param direction the direction of movement
+     * @return the shadow (opposite direction)
+     */
+    public List<Point> getGlobalShadow(final Point direction) {
+        return getShadow(direction)
+            .stream()
+            .map(this::toGlobal)
+            .collect(Collectors.toList());
+    }
+
+    /**
      * See 'shadow-example.png'.
      * @return a list of shadows of the local boundary
      */
